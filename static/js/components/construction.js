@@ -120,6 +120,7 @@ app.component('construction-module', {
       reportForm: {
         package_id: null, report_date: '', avg_hours_per_worker: 0,
         description: '', worker_ids: [], area_ids: [], no_work: false,
+        expected_worker_count: null,
       },
       reportSaving: false,
       reportError: '',
@@ -235,7 +236,7 @@ app.component('construction-module', {
       workLogLoading: false,
       showLogModal: false,
       editingLog: null,
-      logForm: { package_id: null, start_date: '', end_date: '', notes: '' },
+      logForm: { package_id: null, start_date: '', end_date: '', notes: '', ignore_missing_reports: false },
       logSaving: false,
       logError: '',
       logPackageFilter: null,
@@ -674,6 +675,24 @@ app.component('construction-module', {
     reportTotalHours() {
       const avg = parseFloat(this.reportForm.avg_hours_per_worker) || 0;
       return +(avg * (this.reportForm.worker_ids || []).length).toFixed(2);
+    },
+    // Live "X selected vs Y entered" feedback for the workers picker.
+    // `delta` is positive when more workers are selected than the user
+    // entered, negative when fewer. A gap is allowed — it never blocks
+    // submission — so this is purely advisory.
+    reportWorkerCountStatus() {
+      const expected = this.reportForm.expected_worker_count;
+      const selected = (this.reportForm.worker_ids || []).length;
+      if (expected == null || expected === '' || isNaN(Number(expected))) {
+        return { hasExpected: false, expected: null, selected, delta: 0 };
+      }
+      const exp = Math.max(0, parseInt(expected, 10) || 0);
+      return {
+        hasExpected: true,
+        expected: exp,
+        selected,
+        delta: selected - exp,    // positive: over, negative: short
+      };
     },
 
     // Package choices for the forms.
@@ -1262,10 +1281,11 @@ app.component('construction-module', {
       this.editingLog = log;
       this.logForm = log
         ? { package_id: log.package_id, start_date: log.start_date,
-            end_date: log.end_date || '', notes: log.notes || '' }
+            end_date: log.end_date || '', notes: log.notes || '',
+            ignore_missing_reports: !!log.ignore_missing_reports }
         : { package_id: this.packages[0]?.id || null,
             start_date: new Date().toISOString().slice(0, 10),
-            end_date: '', notes: '' };
+            end_date: '', notes: '', ignore_missing_reports: false };
       this.logError = '';
       this.showLogModal = true;
     },
@@ -1283,6 +1303,7 @@ app.component('construction-module', {
           start_date: this.logForm.start_date,
           end_date: this.logForm.end_date || null,
           notes: (this.logForm.notes || '').trim() || null,
+          ignore_missing_reports: !!this.logForm.ignore_missing_reports,
         };
         if (this.editingLog) await API.updateWorkLog(this.editingLog.id, body);
         else                 await API.createWorkLog(body);
@@ -1315,6 +1336,8 @@ app.component('construction-module', {
           worker_ids: [...(report.worker_ids || [])],
           area_ids: [...(report.area_ids || [])],
           no_work: !!report.no_work,
+          expected_worker_count: (report.expected_worker_count != null
+                                  ? report.expected_worker_count : null),
         };
       } else {
         this.reportForm = {
@@ -1325,6 +1348,7 @@ app.component('construction-module', {
           worker_ids: [],
           area_ids: [],
           no_work: false,
+          expected_worker_count: null,
         };
       }
       this.reportError = '';
@@ -1370,6 +1394,10 @@ app.component('construction-module', {
       }
       this.reportSaving = true; this.reportError = '';
       try {
+        const expRaw = this.reportForm.expected_worker_count;
+        const expectedNum = (expRaw === '' || expRaw == null || isNaN(Number(expRaw)))
+          ? null
+          : Math.max(0, parseInt(expRaw, 10) || 0);
         const body = {
           package_id: Number(this.reportForm.package_id),
           report_date: this.reportForm.report_date,
@@ -1379,11 +1407,21 @@ app.component('construction-module', {
           area_ids: (this.reportForm.area_ids || []).map(Number),
           no_work: !!this.reportForm.no_work || (hoursNum === 0 && !this.reportForm.worker_ids.length
                     && !this.reportForm.area_ids.length && !this.reportForm.description.trim()),
+          expected_worker_count: expectedNum,
         };
-        if (this.editingReport) await API.updateDailyReport(this.editingReport.id, body);
-        else                    await API.createDailyReport(body);
+        const wasNew = !this.editingReport;
+        let saved;
+        if (this.editingReport) saved = await API.updateDailyReport(this.editingReport.id, body);
+        else                    saved = await API.createDailyReport(body);
         await this.loadDailyReports();
-        this.showReportModal = false;
+        if (wasNew && saved && saved.id) {
+          // Keep the modal open after first save so the user can attach
+          // the photos they took on the tablet — the form is now locked
+          // and read-only, but the attachments pane stays uploadable.
+          this.editingReport = saved;
+        } else {
+          this.showReportModal = false;
+        }
       } catch (e) { this.reportError = e.message || 'Save failed'; }
       finally { this.reportSaving = false; }
     },
@@ -1445,6 +1483,7 @@ app.component('construction-module', {
           start_date: log.start_date,
           end_date: today,
           notes: log.notes || null,
+          ignore_missing_reports: !!log.ignore_missing_reports,
         });
         await this.loadWorkLogs();
       } catch (e) {
@@ -1979,6 +2018,9 @@ app.component('construction-module', {
       const expected = new Set();
       for (const wl of logs) {
         if (!wl.start_date) continue;
+        // Mirrors backend _expected_report_dates: ignore-flagged work
+        // periods don't generate "missing report" days.
+        if (wl.ignore_missing_reports) continue;
         const start = new Date(wl.start_date + 'T00:00:00');
         const rawEnd = wl.end_date ? new Date(wl.end_date + 'T00:00:00') : new Date(today + 'T00:00:00');
         if (rawEnd < start) continue;
@@ -2468,6 +2510,7 @@ app.component('construction-module', {
           </div>
           <div class="text-xs text-gray-500 mt-1">
             vs expected days from work logs
+            <span class="block text-gray-400">(work periods flagged "no-count" are excluded)</span>
           </div>
         </div>
       </div>
@@ -3210,7 +3253,7 @@ app.component('construction-module', {
 
     <!-- ─── Daily report modal ─── -->
     <div v-if="showReportModal" class="modal-overlay" @click.self="showReportModal = false">
-      <div class="modal-box modal-xl" style="height:92vh;max-height:92vh;display:flex;flex-direction:column">
+      <div class="modal-box modal-xl" style="max-width:min(1400px,95vw) !important;height:92vh;max-height:92vh;display:flex;flex-direction:column">
         <div class="modal-header">
           <h3 class="text-lg font-semibold text-gray-800">
             {{ editingReport ? 'Edit Daily Report' : 'New Daily Report' }}
@@ -3220,7 +3263,8 @@ app.component('construction-module', {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        <div class="modal-body space-y-3 overflow-y-auto flex flex-col" style="padding:20px 24px">
+        <div class="modal-body" style="padding:0;display:flex;overflow:hidden;flex:1">
+        <div class="space-y-3 overflow-y-auto flex flex-col min-w-0" style="flex:1 1 50%;padding:20px 24px">
           <!-- Lock banner -->
           <div v-if="editingReport && editingReport.locked"
             class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 flex items-start gap-2">
@@ -3241,8 +3285,9 @@ app.component('construction-module', {
             </div>
           </div>
 
-          <!-- Top row: package, date, avg hours, total hours, no-work shortcut -->
-          <div class="grid grid-cols-4 gap-3">
+          <!-- Data fields — split into two rows so the left column can be
+               narrower and the attachments pane on the right wider. -->
+          <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="form-label">Package <span class="text-red-500">*</span></label>
               <select v-model="reportForm.package_id" :disabled="!!editingReport || reportFormReadOnly" class="input-field">
@@ -3253,6 +3298,15 @@ app.component('construction-module', {
             <div>
               <label class="form-label">Date <span class="text-red-500">*</span></label>
               <input v-model="reportForm.report_date" :disabled="!!editingReport || reportFormReadOnly" type="date" class="input-field"/>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="form-label" title="How many workers were on site today. The picker below will help you reach this number.">
+                Number of workers
+              </label>
+              <input v-model.number="reportForm.expected_worker_count" :disabled="reportFormReadOnly"
+                type="number" min="0" step="1" placeholder="e.g. 12" class="input-field"/>
             </div>
             <div>
               <label class="form-label">Avg hours per worker</label>
@@ -3299,7 +3353,27 @@ app.component('construction-module', {
                   <span class="ml-auto text-xs text-gray-400">{{ w.display_id }}</span>
                 </label>
               </div>
-              <div class="mt-1 text-xs text-gray-500">{{ (reportForm.worker_ids || []).length }} / {{ reportEligibleWorkers.length }} selected</div>
+              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                <span class="text-gray-500">{{ (reportForm.worker_ids || []).length }} / {{ reportEligibleWorkers.length }} selected</span>
+                <template v-if="reportWorkerCountStatus.hasExpected">
+                  <span class="text-gray-400">·</span>
+                  <span class="text-gray-600">Number of workers: <strong class="text-gray-800">{{ reportWorkerCountStatus.expected }}</strong></span>
+                  <span v-if="reportWorkerCountStatus.delta === 0"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    Matches
+                  </span>
+                  <span v-else-if="reportWorkerCountStatus.delta < 0"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                    {{ -reportWorkerCountStatus.delta }} more to select
+                  </span>
+                  <span v-else
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                    {{ reportWorkerCountStatus.delta }} over the entered number
+                  </span>
+                  <span class="text-gray-400 italic">(submitting with a gap is allowed)</span>
+                </template>
+              </div>
             </div>
 
             <!-- Areas (right column) -->
@@ -3339,7 +3413,25 @@ app.component('construction-module', {
           </div>
 
           <p v-if="reportError" class="text-red-500 text-sm">{{ reportError }}</p>
+        </div><!-- end left column -->
+        <!-- Attachments pane (right column) -->
+        <div class="overflow-y-auto border-l border-gray-200 bg-gray-50 shrink-0"
+             style="flex:0 0 50%;min-width:24rem;padding:20px 16px">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Attachments</p>
+          <template v-if="editingReport && editingReport.id">
+            <file-attachments record-type="daily_report" :record-id="editingReport.id"
+              :can-upload="true" :can-edit="true" :gallery-mode="true"></file-attachments>
+          </template>
+          <template v-else>
+            <div class="rounded-md border border-dashed border-gray-300 bg-white px-3 py-4 text-xs text-gray-500 leading-relaxed">
+              Submit the report first — once saved, you can attach the photos
+              you took on site (drag-and-drop or use the camera button on a
+              tablet). Files are stored under
+              <code class="text-[11px] bg-gray-100 px-1 py-0.5 rounded">{package}/Daily Reports</code>.
+            </div>
+          </template>
         </div>
+        </div><!-- end modal-body -->
         <div class="modal-footer">
           <button v-if="editingReport && editingReport.locked && canUnlockReports"
             @click="openUnlockModal(editingReport)"
@@ -4206,7 +4298,15 @@ app.component('construction-module', {
                 <span v-if="l.end_date" class="text-gray-700">{{ l.end_date }}</span>
                 <span v-else class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">ongoing</span>
               </td>
-              <td class="px-3 py-1.5 text-gray-500 truncate max-w-[28rem]" :title="l.notes">{{ l.notes || '—' }}</td>
+              <td class="px-3 py-1.5 text-gray-500 truncate max-w-[28rem]" :title="l.notes">
+                <span v-if="l.ignore_missing_reports"
+                  class="inline-flex items-center gap-1 mr-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-200 text-gray-700 border border-gray-300"
+                  title="Missing daily reports are not counted for this work period">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"/></svg>
+                  No-count
+                </span>
+                {{ l.notes || '—' }}
+              </td>
               <td class="px-3 py-1.5 text-xs text-gray-500">{{ l.created_by_name || '—' }}</td>
               <td v-if="canEditWorkLogs" class="px-3 py-1.5 text-right whitespace-nowrap">
                 <button v-if="!l.end_date" @click="endLog(l)"
@@ -4386,6 +4486,20 @@ app.component('construction-module', {
           <div>
             <label class="form-label">Notes</label>
             <textarea v-model="logForm.notes" class="input-field" rows="3" placeholder="Optional notes about this work period..."></textarea>
+          </div>
+          <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" v-model="logForm.ignore_missing_reports" class="mt-0.5 rounded"/>
+              <span class="text-xs text-gray-700 leading-relaxed">
+                <span class="font-semibold text-gray-800">Don't count missing daily reports for this period.</span>
+                <span class="block text-gray-500">
+                  Use this for mobilisation, idle weeks, or any period where
+                  daily reporting was knowingly waived. The dates inside this
+                  work period will not appear in the dashboard's "Daily reports
+                  missing" count.
+                </span>
+              </span>
+            </label>
           </div>
           <p v-if="logError" class="text-red-500 text-sm">{{ logError }}</p>
         </div>

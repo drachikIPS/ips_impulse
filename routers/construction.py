@@ -110,6 +110,7 @@ class WorkLogCreate(BaseModel):
     start_date: str
     end_date: Optional[str] = None
     notes: Optional[str] = None
+    ignore_missing_reports: bool = False
 
 class WorkLogUpdate(WorkLogCreate):
     pass
@@ -123,6 +124,7 @@ class DailyReportBody(BaseModel):
     worker_ids: List[int] = []
     area_ids: List[int] = []
     no_work: bool = False
+    expected_worker_count: Optional[int] = None
 
 
 class WorkPermitHazardBody(BaseModel):
@@ -199,6 +201,7 @@ def _fmt_work_log(wl: models.WorkLog) -> dict:
         "start_date": wl.start_date,
         "end_date": wl.end_date,
         "notes": wl.notes or "",
+        "ignore_missing_reports": bool(wl.ignore_missing_reports),
         "created_at": wl.created_at.isoformat() + 'Z' if wl.created_at else None,
         "created_by_name": wl.created_by.name if wl.created_by else None,
     }
@@ -841,6 +844,7 @@ def create_work_log(body: WorkLogCreate,
         start_date=body.start_date,
         end_date=body.end_date or None,
         notes=(body.notes or "").strip() or None,
+        ignore_missing_reports=bool(body.ignore_missing_reports),
         created_by_id=user.id,
     )
     db.add(wl); db.commit(); db.refresh(wl)
@@ -865,6 +869,7 @@ def update_work_log(log_id: int, body: WorkLogUpdate,
     wl.start_date = body.start_date
     wl.end_date = body.end_date or None
     wl.notes = (body.notes or "").strip() or None
+    wl.ignore_missing_reports = bool(body.ignore_missing_reports)
     wl.updated_by_id = user.id
     db.commit(); db.refresh(wl)
     return _fmt_work_log(wl)
@@ -909,6 +914,7 @@ def _fmt_daily_report(r: models.DailyReport, db: Session) -> dict:
         "report_date": r.report_date,
         "description": r.description or "",
         "avg_hours_per_worker": r.avg_hours_per_worker or 0.0,
+        "expected_worker_count": r.expected_worker_count,
         "no_work": bool(r.no_work),
         "workers": workers,
         "worker_ids": [w["id"] for w in workers],
@@ -927,11 +933,15 @@ def _fmt_daily_report(r: models.DailyReport, db: Session) -> dict:
 
 def _expected_report_dates(db: Session, project_id: int, package_id: int) -> set:
     """All YYYY-MM-DD dates on which a report is expected for the package,
-    derived from its WorkLog windows (future dates excluded)."""
+    derived from its WorkLog windows (future dates excluded). Work periods
+    flagged `ignore_missing_reports` are skipped — those days never count
+    as missing."""
     today = date.today()
     out = set()
     logs = db.query(models.WorkLog).filter_by(project_id=project_id, package_id=package_id).all()
     for wl in logs:
+        if getattr(wl, "ignore_missing_reports", False):
+            continue
         try:
             start = date.fromisoformat(wl.start_date) if wl.start_date else None
         except Exception:
@@ -1091,6 +1101,9 @@ def create_daily_report(body: DailyReportBody,
         report_date=body.report_date,
         description=(body.description or "").strip() or None,
         avg_hours_per_worker=float(body.avg_hours_per_worker or 0.0),
+        expected_worker_count=(int(body.expected_worker_count)
+                               if body.expected_worker_count is not None
+                               else None),
         no_work=bool(body.no_work) or (
             body.avg_hours_per_worker == 0 and not body.worker_ids and not body.area_ids
             and not (body.description or "").strip()
@@ -1122,6 +1135,9 @@ def update_daily_report(report_id: int, body: DailyReportBody,
     # Date + package cannot change after creation (simpler for uniqueness)
     r.description = (body.description or "").strip() or None
     r.avg_hours_per_worker = float(body.avg_hours_per_worker or 0.0)
+    r.expected_worker_count = (int(body.expected_worker_count)
+                               if body.expected_worker_count is not None
+                               else None)
     r.no_work = bool(body.no_work) or (
         body.avg_hours_per_worker == 0 and not body.worker_ids and not body.area_ids
         and not (body.description or "").strip()

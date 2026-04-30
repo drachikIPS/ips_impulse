@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 import auth
 import models
-import storage
 from database import get_db
 
 router = APIRouter(prefix="/api/attachments", tags=["attachments"])
@@ -39,7 +38,7 @@ def _max_upload_bytes(db: Session, project_id: int) -> int:
 VALID_RECORD_TYPES = {
     "meeting_point", "order", "invoice", "scope_change",
     "progress_report", "document", "document_version", "procurement_entry", "task", "itp", "punch",
-    "worker", "safety_observation", "incident", "safety_toolbox",
+    "worker", "safety_observation", "incident", "safety_toolbox", "daily_report",
 }
 
 
@@ -209,6 +208,14 @@ def _folder_for_record(record_type: str, record_id: int, project_number: str, db
         # in a project-level "Safety Toolboxes" folder rather than per-package.
         return UPLOAD_ROOT / pn / "Safety Toolboxes"
 
+    elif record_type == "daily_report":
+        dr = db.query(models.DailyReport).filter_by(id=record_id).first()
+        if not dr:
+            raise HTTPException(404, "Daily report not found")
+        if not dr.package:
+            raise HTTPException(400, "Daily report must be linked to a package")
+        return UPLOAD_ROOT / pn / _sanitize(dr.package.tag_number) / "Daily Reports"
+
     else:
         raise HTTPException(400, f"Unknown record type: {record_type}")
 
@@ -319,6 +326,7 @@ _PREFIX_CODES = {
     "safety_observation": ("SO", "safety_observations"),
     "incident":           ("IR", "safety_incidents"),
     "safety_toolbox":     ("TB", "safety_toolboxes"),
+    "daily_report":       ("DR", None),
 }
 
 
@@ -369,6 +377,7 @@ def _record_type_label(rt: str) -> str:
         "safety_observation": "Safety Observation",
         "incident": "Safety Incident",
         "safety_toolbox": "Toolbox Talk",
+        "daily_report": "Daily Report",
     }.get(rt, rt)
 
 
@@ -400,6 +409,7 @@ async def upload_attachment(
         raise HTTPException(404, "Project not found")
 
     folder = _folder_for_record(record_type, record_id, project.project_number, db)
+    folder.mkdir(parents=True, exist_ok=True)
 
     # Build a safe unique filename: {id_prefix}_{stem_truncated}_{uuid8}.{ext}
     raw_name = file.filename or "file"
@@ -409,9 +419,9 @@ async def upload_attachment(
     uid8     = uuid.uuid4().hex[:8]              # 8-char unique suffix
     prefix   = _id_prefix(record_type, record_id, db)
     stored_name = f"{prefix}_{stem}_{uid8}{suffix}"
-    stored_path_str = str(folder.relative_to(UPLOAD_ROOT) / stored_name)
+    dest = folder / stored_name
 
-    storage.upload_file(stored_path_str, content, file.content_type or "application/octet-stream")
+    dest.write_bytes(content)
 
     # For procurement entries, auto-stamp the step the entry is currently on.
     # This gives the bidder portal a free "uploaded at step X" overview for
@@ -442,7 +452,7 @@ async def upload_attachment(
         record_type=record_type,
         record_id=record_id,
         original_filename=file.filename or "file",
-        stored_path=stored_path_str,
+        stored_path=str(dest.relative_to(UPLOAD_ROOT)),
         file_size=len(content),
         content_type=file.content_type or "application/octet-stream",
         uploaded_at=datetime.utcnow(),
@@ -625,6 +635,12 @@ def _record_ref(a: models.FileAttachment, db: Session) -> str:
                 pkg = punch.package.tag_number if punch.package else "?"
                 return f"PI-{a.record_id:06d} {pkg} — {punch.topic[:40] if punch.topic else ''}"
             return f"PI-{a.record_id:06d}"
+        elif a.record_type == "daily_report":
+            dr = db.query(models.DailyReport).filter_by(id=a.record_id).first()
+            if dr:
+                pkg = dr.package.tag_number if dr.package else "?"
+                return f"DR-{a.record_id:06d} {pkg} — {dr.report_date or ''}"
+            return f"DR-{a.record_id:06d}"
     except Exception:
         pass
     return f"#{a.record_id}"
@@ -645,10 +661,13 @@ def delete_attachment(
     if not a:
         raise HTTPException(404, "Attachment not found")
 
+    # Remove from disk
+    disk_path = UPLOAD_ROOT / a.stored_path
     try:
-        storage.delete_file(a.stored_path)
+        if disk_path.exists():
+            disk_path.unlink()
     except Exception:
-        pass
+        pass  # Log but don't block DB deletion
 
     db.delete(a)
     db.commit()
@@ -668,12 +687,12 @@ def view_attachment(
     if not a:
         raise HTTPException(404, "Attachment not found")
 
-    file_content = storage.get_file_bytes(a.stored_path)
-    if file_content is None:
-        raise HTTPException(404, "File not found")
+    disk_path = UPLOAD_ROOT / a.stored_path
+    if not disk_path.exists():
+        raise HTTPException(404, "File not found on disk")
 
-    return StreamingResponse(
-        io.BytesIO(file_content),
+    return FileResponse(
+        path=str(disk_path),
         media_type=a.content_type or "application/octet-stream",
         headers={"Content-Disposition": f'inline; filename="{a.original_filename}"'},
     )
@@ -692,13 +711,14 @@ def download_attachment(
     if not a:
         raise HTTPException(404, "Attachment not found")
 
-    file_content = storage.get_file_bytes(a.stored_path)
-    if file_content is None:
-        raise HTTPException(404, "File not found")
+    disk_path = UPLOAD_ROOT / a.stored_path
+    if not disk_path.exists():
+        raise HTTPException(404, "File not found on disk")
 
-    return StreamingResponse(
-        io.BytesIO(file_content),
+    return FileResponse(
+        path=str(disk_path),
         media_type=a.content_type or "application/octet-stream",
+        filename=a.original_filename,
         headers={"Content-Disposition": f'attachment; filename="{a.original_filename}"'},
     )
 
@@ -743,8 +763,8 @@ def download_attachments_zip(
     seen_names: dict = {}
     with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for r in rows:
-            file_bytes = storage.get_file_bytes(r.stored_path)
-            if file_bytes is None:
+            disk_path = UPLOAD_ROOT / r.stored_path
+            if not disk_path.exists():
                 continue
             base = _safe_zip_filename(r.original_filename or f"file_{r.id}")
             # Disambiguate duplicates: foo.pdf, foo (2).pdf, foo (3).pdf
@@ -756,8 +776,8 @@ def download_attachments_zip(
                 stem, dot, ext = base.rpartition(".")
                 arc_name = f"{stem} ({n}).{ext}" if dot else f"{base} ({n})"
             try:
-                zf.writestr(arc_name, file_bytes)
-            except Exception:
+                zf.write(disk_path, arcname=arc_name)
+            except OSError:
                 continue
     buf.seek(0)
 

@@ -1,12 +1,10 @@
-import io
 import os
 import re
 import uuid
 from datetime import datetime
 from pathlib import Path
-import storage
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -503,17 +501,19 @@ async def upload_floorplan(
                 raise HTTPException(400, f"Invalid area id: {chunk}")
 
     # Persist file
+    folder = UPLOAD_ROOT / _sanitize(project.project_number) / "Floor Plans"
+    folder.mkdir(parents=True, exist_ok=True)
     stem = _sanitize(Path(raw_name).stem) or "floorplan"
     stem = stem[:60]
     uid8 = uuid.uuid4().hex[:8]
     stored_name = f"FP_{stem}_{uid8}{ext}"
-    stored_path_str = str(Path(_sanitize(project.project_number)) / "Floor Plans" / stored_name)
-    storage.upload_file(stored_path_str, content, ctype)
+    dest = folder / stored_name
+    dest.write_bytes(content)
 
     fp = models.Floorplan(
         project_id=user.project_id,
         name=name,
-        stored_path=stored_path_str,
+        stored_path=str(dest.relative_to(UPLOAD_ROOT)),
         original_filename=raw_name,
         content_type=ctype,
         file_size=len(content),
@@ -540,13 +540,18 @@ def get_floorplan_image(
     ).first()
     if not fp:
         raise HTTPException(404, "Floorplan not found")
-    file_bytes = storage.get_file_bytes(fp.stored_path)
-    if file_bytes is None:
+    abs_path = (UPLOAD_ROOT / fp.stored_path).resolve()
+    # Containment check — never serve a file outside the upload root
+    try:
+        abs_path.relative_to(UPLOAD_ROOT.resolve())
+    except ValueError:
         raise HTTPException(404, "Floorplan file not found")
-    return StreamingResponse(
-        io.BytesIO(file_bytes),
+    if not abs_path.exists():
+        raise HTTPException(404, "Floorplan file missing on disk")
+    return FileResponse(
+        abs_path,
         media_type=fp.content_type or "image/jpeg",
-        headers={"Content-Disposition": f'inline; filename="{fp.original_filename or fp.id}"'},
+        filename=fp.original_filename or abs_path.name,
     )
 
 
@@ -600,8 +605,12 @@ def delete_floorplan(
     db.query(models.Area).filter(
         models.Area.floorplan_id == fp.id
     ).update({models.Area.floorplan_id: None}, synchronize_session=False)
+    # Best-effort delete of the underlying file
     try:
-        storage.delete_file(fp.stored_path)
+        abs_path = (UPLOAD_ROOT / fp.stored_path).resolve()
+        abs_path.relative_to(UPLOAD_ROOT.resolve())
+        if abs_path.exists():
+            abs_path.unlink()
     except Exception:
         pass
     db.delete(fp)

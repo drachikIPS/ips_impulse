@@ -1,13 +1,10 @@
-import io
 import os
 import re
-import uuid
 from datetime import datetime
 from typing import List, Optional
 
-import storage
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
@@ -17,7 +14,10 @@ from routers.audit import set_created, set_updated, check_lock, audit_dict
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
-CUSTOMER_FEEDBACK_DIR = "Customer Feedbacks"
+# Customer feedback files live OUTSIDE the project upload tree so they
+# survive project archiving and can be aggregated across projects.
+CUSTOMER_FEEDBACK_DIR = os.path.join("uploads", "Customer Feedbacks")
+os.makedirs(CUSTOMER_FEEDBACK_DIR, exist_ok=True)
 
 
 def _sanitize_filename_part(s: str) -> str:
@@ -819,11 +819,18 @@ def upload_customer_feedback(
     ts = datetime.utcnow().strftime("%H%M%S")
     ext = os.path.splitext(file.filename or "")[1].lower() or ""
     base = "_".join(part for part in (pno, cli, date_part, pol, ts) if part)
-    saved_name = f"{base}_{uuid.uuid4().hex[:8]}{ext}"
-    saved_path = f"{CUSTOMER_FEEDBACK_DIR}/{saved_name}"
+    saved_name = f"{base}{ext}"
+    saved_path = os.path.join(CUSTOMER_FEEDBACK_DIR, saved_name)
 
-    content = file.file.read()
-    storage.upload_file(saved_path, content, file.content_type or "application/octet-stream")
+    # Avoid collisions
+    counter = 2
+    while os.path.exists(saved_path):
+        saved_name = f"{base}_{counter}{ext}"
+        saved_path = os.path.join(CUSTOMER_FEEDBACK_DIR, saved_name)
+        counter += 1
+
+    with open(saved_path, "wb") as out:
+        out.write(file.file.read())
 
     fb = models.CustomerFeedback(
         project_id=project_id,
@@ -884,14 +891,9 @@ def download_customer_feedback(
         up = db.query(models.UserProject).filter_by(user_id=user.id, project_id=fb.project_id).first()
         if not up:
             raise HTTPException(403, "Not authorized")
-    file_content = storage.get_file_bytes(fb.file_path)
-    if file_content is None:
-        raise HTTPException(404, "File not found")
-    return StreamingResponse(
-        io.BytesIO(file_content),
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{fb.file_name}"'},
-    )
+    if not os.path.exists(fb.file_path):
+        raise HTTPException(404, "File missing on disk")
+    return FileResponse(fb.file_path, filename=fb.file_name)
 
 
 @router.delete("/customer-feedbacks/{feedback_id}")
@@ -906,8 +908,9 @@ def delete_customer_feedback(
     if not _can_manage_project(user, fb.project_id, db):
         raise HTTPException(403, "Not authorized")
     try:
-        storage.delete_file(fb.file_path)
-    except Exception:
+        if os.path.exists(fb.file_path):
+            os.remove(fb.file_path)
+    except OSError:
         pass
     db.delete(fb)
     db.commit()

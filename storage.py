@@ -32,11 +32,18 @@ def _supabase():
 def upload_file(path: str, content: bytes, content_type: str) -> None:
     """Upload bytes to Supabase Storage or local disk."""
     if _USE_SUPABASE:
-        _supabase().storage.from_(STORAGE_BUCKET).upload(
-            path=path,
-            file=content,
-            file_options={"content-type": content_type, "upsert": "true"},
-        )
+        import logging
+        _log = logging.getLogger(__name__)
+        _log.info("Supabase upload: bucket=%s path=%r content_type=%r size=%d", STORAGE_BUCKET, path, content_type, len(content))
+        try:
+            _supabase().storage.from_(STORAGE_BUCKET).upload(
+                path=path,
+                file=content,
+                file_options={"content-type": content_type, "upsert": "true"},
+            )
+        except Exception as exc:
+            _log.error("Supabase upload FAILED: %s", exc)
+            raise
     else:
         dest = UPLOAD_ROOT / path
         dest.parent.mkdir(parents=True, exist_ok=True)

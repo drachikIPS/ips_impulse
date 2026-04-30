@@ -1963,6 +1963,11 @@ class DailyReport(Base):
     report_date = Column(String(20), nullable=False)  # YYYY-MM-DD
     description = Column(Text, nullable=True)
     avg_hours_per_worker = Column(Float, default=0.0, nullable=False)
+    # Vendor-declared head-count for the day. The user enters this first; the
+    # workers multi-select then shows a live "X selected vs Y expected" delta.
+    # A gap between this number and the actual selection does NOT block
+    # submission — it's an aid, not a constraint.
+    expected_worker_count = Column(Integer, nullable=True)
     no_work = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -2020,6 +2025,10 @@ class WorkLog(Base):
     start_date = Column(String(20), nullable=False)
     end_date = Column(String(20), nullable=True)     # nullable: still on-going
     notes = Column(Text, nullable=True)
+    # When true, the dates inside this work period are NOT counted as
+    # "missing daily reports" on the construction dashboard. Used for periods
+    # where reporting was knowingly waived (mobilisation, idle weeks, etc.).
+    ignore_missing_reports = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_at = Column(DateTime, nullable=True, onupdate=datetime.utcnow)

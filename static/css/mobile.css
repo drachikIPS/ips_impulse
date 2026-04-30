@@ -1,0 +1,284 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mobile shell — phone-only styles for the /m/ entry.
+   Keeps the desktop CSS untouched. Designed for one-hand portrait use.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ips-blue: #00AEEF;
+  --ips-dark: #1B4F8C;
+  --ips-light: #E8F4FD;
+  /* Safe-area paddings honour iPhone notch / Android nav bar */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --m-app-bar-h: 56px;
+  --m-bottom-bar-h: 60px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #F9FAFB;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.05);
+  overscroll-behavior-y: contain;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.m-body {
+  min-height: 100dvh;          /* honours mobile dynamic viewport (Safari toolbar etc) */
+  color: #111827;
+}
+
+/* ── Screen wrapper ───────────────────────────────────────────────────────── */
+.m-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #F9FAFB;
+  padding-top: var(--safe-top);
+}
+
+.m-screen-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--safe-bottom) + 12px);
+}
+
+/* ── App bar (sticky top) ────────────────────────────────────────────────── */
+.m-app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--ips-dark);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  height: var(--m-app-bar-h);
+  padding: 0 8px 0 4px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.m-app-bar-back,
+.m-app-bar-action {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.m-app-bar-back:active,
+.m-app-bar-action:active { background: rgba(255, 255, 255, 0.12); }
+
+.m-app-bar-title {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+}
+
+.m-app-bar-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Bottom bar (sticky CTA bar) ─────────────────────────────────────────── */
+.m-bottom-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  background: #fff;
+  border-top: 1px solid #E5E7EB;
+  padding: 10px 16px calc(10px + var(--safe-bottom));
+  display: flex;
+  gap: 8px;
+}
+
+/* ── List rows ───────────────────────────────────────────────────────────── */
+.m-list { display: flex; flex-direction: column; }
+.m-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border-bottom: 1px solid #F3F4F6;
+  min-height: 64px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+.m-list-row:active { background: #F3F4F6; }
+.m-list-row-body { flex: 1; min-width: 0; }
+.m-list-row-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-list-row-sub {
+  font-size: 12.5px;
+  color: #6B7280;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.m-list-row-chevron { color: #9CA3AF; flex-shrink: 0; }
+
+.m-section-label {
+  padding: 18px 16px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Status pills ────────────────────────────────────────────────────────── */
+.m-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.m-pill-blue   { background: #DBEAFE; color: #1D4ED8; border-color: #BFDBFE; }
+.m-pill-green  { background: #D1FAE5; color: #047857; border-color: #A7F3D0; }
+.m-pill-amber  { background: #FEF3C7; color: #B45309; border-color: #FDE68A; }
+.m-pill-red    { background: #FEE2E2; color: #B91C1C; border-color: #FECACA; }
+.m-pill-gray   { background: #F3F4F6; color: #4B5563; border-color: #E5E7EB; }
+.m-pill-purple { background: #F3E8FF; color: #6B21A8; border-color: #E9D5FF; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.m-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: #6B7280;
+}
+.m-empty-title { font-size: 15px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.m-empty-sub   { font-size: 13px; color: #6B7280; }
+
+/* ── Floating action button ──────────────────────────────────────────────── */
+.m-fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(20px + var(--safe-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--ips-blue);
+  color: #fff;
+  border: 0;
+  box-shadow: 0 6px 16px rgba(0, 174, 239, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 25;
+}
+.m-fab:active { background: var(--ips-dark); }
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+.m-input, .m-select, .m-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 16px;            /* ≥16px stops iOS auto-zoom on focus */
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  background: #fff;
+  color: #111827;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+.m-input:focus, .m-select:focus, .m-textarea:focus {
+  border-color: var(--ips-blue);
+  box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.18);
+}
+.m-label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+.m-form-row { padding: 14px 16px; background: #fff; border-bottom: 1px solid #F3F4F6; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 44px;
+}
+.m-btn:disabled { opacity: 0.5; pointer-events: none; }
+.m-btn-primary   { background: var(--ips-blue); color: #fff; }
+.m-btn-primary:active { background: var(--ips-dark); }
+.m-btn-secondary { background: #fff; color: var(--ips-dark); border-color: #D1D5DB; }
+.m-btn-block     { width: 100%; }
+
+/* ── Tile (used by the project home / module hub) ────────────────────────── */
+.m-tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 16px; }
+.m-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 16px;
+  min-height: 110px;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.12s;
+}
+.m-tile:active { transform: scale(0.98); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.m-tile-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.m-tile-title { font-size: 15px; font-weight: 700; color: #111827; margin-top: 8px; }
+.m-tile-sub   { font-size: 12px; color: #6B7280; margin-top: 2px; }
+
+/* ── Login screen ────────────────────────────────────────────────────────── */
+.m-login-wrap {
+  min-height: 100dvh;
+  background: linear-gradient(160deg, var(--ips-dark) 0%, #0B1D3A 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px;
+}
+.m-login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 22px 24px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+/* Disable text selection on the chrome (bars, tiles); keep it on content */
+.m-app-bar, .m-tile, .m-list-row, .m-bottom-bar, .m-fab { user-select: none; -webkit-user-select: none; }
