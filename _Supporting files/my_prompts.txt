@@ -1,0 +1,191 @@
+MY PROMPTS — IPS Project Management Platform Development
+=========================================================
+Extracted from conversation session: 2026-03-31 to 2026-04-03
+=========================================================
+
+
+1. (2026-03-31)
+Can you make me an application that serves as project management platform. We will do the development in several steps and start with some easy setup. The idea is to create this platform as a site and integration will be required with sharepoint document library. I added a folder "branding" which is to be used for the branding. The first step is to create 2 modules which can be vizualized as tabs. The first one is the Project Organization. This tab contains the contact list of the project. for each contact his name, email adress, company, phone numbers and function should be inserted. The second module serves as Meeting Management. this module should contain a list to define Meeting Types, Meetings and meeting points. each meeting is connected to a meeting type and each meeting point is connected to a meeting. In each meeting, the participants should be defined (as default based upon the participants selected in the meeting type, but can be manually adjusted). For each meeting point, the...
+
+
+2. (2026-03-31)
+I get white screen when going to http://localhost:8000
+
+
+3. (2026-04-01)
+OK, cool it works. Can you adapt the following: in the Project Organization, can you create tabs. the first tab is the contact list, the added tab should be named "Packages". In the package list, the different procurement packages of the project should be listed. For each package, a tag number should be identified, the person from the contact list who is the account manager, only contacts linked to the package can be selected, a company should be specified, address, and also the "Package Owner" is linked to the package (this can be anybody from the contact list). This implies that in the contact list you can remove company column as each of the contact persons should be linked to his associated package. Additionally, I see that we need to have the timezone specified in the Admin settings in order to have correct recording of time in the meeting Management. In the "All Points" tab of the meeting management, can you add a button to open the point from that view? And in the meeting points se...
+
+
+4. (2026-04-01)
+Is it OK?
+
+
+5. (2026-04-01)
+If I go in the Project Organization tab I get nothing anymore...
+
+
+6. (2026-04-01)
+No, still not getting anything...
+
+
+7. (2026-04-01)
+[Pasted browser console error]
+vue.global.prod.js:5 TypeError: this.packages.filter is not a function at Proxy.contactPackages (contacts.js:204:28)...
+
+
+8. (2026-04-01)
+When I try to change a package, I get "Method Not Allowed"
+
+
+9. (2026-04-01)
+I cannot find python main.py
+
+
+10. (2026-04-01)
+I do not find this PUT /api/packages/{pkg_id} and it still does not work
+
+
+11. (2026-04-01)
+Done?
+
+
+12. (2026-04-01)
+OK, works. Now let's think about permission roles. We have user and admin. Admin is correct, he has access to everything. I want to split up user in 4 types: Project Owner, Project Team, Client, Vendor. Project Owners have access to everything and can also add users. Project team typically have access to all modules and can edit. Clients and Vendors can also add meetings, meeting points and meeting notes but only to the meeting types where they are added. Vendors cannot close meeting points. It would be interesting to add a view in the settings where these permissions can be managed. For other modules which we will make in the future, each time these permissions will need to be developed.
+
+
+13. (2026-04-02)
+OK, good start. One point: everyone should have reading access to the project organization and everyone can edit contacts. Only project owners can add and edit packages. Can be added to the permission settings as a module. In the project organization, we need to add 2 items. For each package the following fields need to be added: PMC Technical Review, PMC Commercial Review, Client Technical Review. Additionally, we need to add a tab "Subservices" in the project organization which lists up the different subservices and we can assign a PMC Reviewer and Client Reviewer for each subservice. The default subservices can be found in the excel file "Subservices" which I added in the folder in folder risk assessment. In this excel file, you find the default setup for these %. Look in sheet "Risk setup". You also find the setup of the risk matrix. Red colored values are considered as high risk, orange as medium, green as low. You find also the Categories and Project Phases in the sheets Category and Phase. All this should be added and editable in the first tab for setup. This tab is editable for project owners and can be viewed by team members and clients. In the second tab, you find the risk register with all risks. The sheet "Risk Assessment" can be used as basis for how this should look like and how it should be done. Important is to distinguish risk before mitigation, mitigation type and acti...
+
+
+14. (2026-04-02)
+I am missing the Client Commercial Reviewer when editing a package. The approval of an invoice must be done by two people: the PMC Commercial approver and the Client Commercial Approver of the package. I tested to approve the invoice as admin but it was not available as Commercial Approver of a package. Additionally, when you should review an invoice, it should be added in your action list.
+
+
+15. (2026-04-02)
+Can we continue?
+
+
+16. (2026-04-02)
+Integrate a dashboard in the Budget Management tab with some filters, only accessible for project owners and client. Put the "My Action Points" Tab on top in the left navigation bar. If an invoice is rejected, the owner of the invoice should get it in his action list. "Transfers & Injections" should not be visible for vendors. When an invoice is rejected or approved, a comment should be given by the one approving or rejecting. In case it is rejected, the owner of the invoice (the vendor) should get an action in his action list to check the rejection, update his invoice and submit again for approval. He can also cancel his invoice.
+
+
+17. (2026-04-03)
+Subtitle in "Budget Management — Baseline, orders, transfers and invoicing per package" can be removed in budget management module
+
+
+18. (2026-04-03)
+It's still there
+
+
+19. (2026-04-03)
+Ok, now there is still "Budget Management" beneath the main header which is also "Budget Management". The second can also be removed. There is a similar situation in My Action Points and Project Organization
+
+
+20. (2026-04-03)
+Perfect. Now let's add a "project risk register" module. First tab should be the setup of the risk scoring. In this tab you can define for score from 1 till 5 the % for probability, CAPEX Impact and SCHEDULE Impact. So 15 entries to be done. I have added an excel file in the folder in folder risk assessment. In this excel file, you find the default setup for these %. Look in sheet "Risk setup". You also find the setup of the risk matrix. Red colored values are considered as high risk, orange as medium, green as low. You find also the Categories and Project Phases in the sheets Category and Phase. All this should be added and editable in the first tab for setup. This tab is editable for project owners and can be viewed by team members and clients. In the second tab, you find the risk register with all risks. The sheet "Risk Assessment" can be used as basis for how this should look like and how it should be done. Important is to distinguish risk before mitigation, mitigation type and acti...
+
+
+21. (2026-04-03)
+I don't see anything in the setup or dashboard of the risk module. Should I restart server?
+
+
+22. (2026-04-03)
+How should I do that?
+
+
+23. (2026-04-03)
+[Ran command in terminal]
+! taskkill //F //IM python.exe //T
+
+
+24. (2026-04-03)
+Can you add in the dashboard of the risk assessment the risk matrix with then the quantity of risks for each number and this before and after mitigation. This needs to be done also separately for the open risk and a second time for all risks. Can we add KPIs for total risk exposure, again for before and after mitigation. And also add bar charts of quantity of risks for low, medium and high. Also before and after mitigation. And then a bar chart for action status per owner. In the columns RISK before, RISK after, the risk can be identified as the calculated number instead of for example P5xI5.
+
+
+25. (2026-04-03)
+Would it be possible to open the risk from the "My Action Points" overview and then be able to add notes or edit the risk (in case you are allowed according to permissions)? In the My Action Points module, also the filters for the modules can be removed since this is not working. In the approval or rejection for an invoice, it should be mandatory to add comments so it would be better to have a button to open the invoice and then approve/reject with added comment.
+
+
+26. (2026-04-03)
+Just an intermediate check: we are building something that afterwards can be transformed in an application that can run on a server where also the database is located and where then the platform website can be hosted as a website. Correct?
+
+
+27. (2026-04-03)
+OK, now a big one. So far we developed the platform just for one project... this is of course not ideal... We should be able to have the full platform for several projects. That means that we have to have a layer on top where projects can be defined using their Project Number, Project Description (short text), Client, Client Reference, General Description, Start Date, End Date, Status and Location. The interface that we created so far is then available for each project, including the "Settings" and in the User Management users should be connected to the projects to which they have access. Is this feasible or too complex or do you see another solution to have the platform for multiple projects?
+
+
+28. (2026-04-03)
+OK, each project has its own timezone, subservices per project and make it editable by project owners, user can indeed be assigned to different roles, only admin can create projects
+
+
+29. (2026-04-03)
+I get the error "Method Not Allowed" when adding or editing a project. Should I restart the server?
+
+
+30. (2026-04-03)
+OK, explain me again how I can restart?
+
+
+31. (2026-04-03)
+I don't have that terminal anymore. I closed it
+
+
+32. (2026-04-03)
+Ok, can you check if I stopped it now?
+
+
+33. (2026-04-03)
+I get TCP    0.0.0.0:8000    0.0.0.0:0    LISTENING    31800
+
+
+34. (2026-04-03)
+I still get "Method Not Allowed" and the form is not adapted to the field when creating new project or editing existing. The add user functionality to the project is also not working...
+
+
+35. (2026-04-03)
+I still get "Method Not Allowed"...
+
+
+36. (2026-04-03)
+[Pasted browser console error]
+PUT http://localhost:8000/api/projects/undefined 405 (Method Not Allowed) — updateProject → saveProject in project-management.js
+
+
+37. (2026-04-03)
+Can you check this for me because I still get "Method Not Allowed"
+
+
+38. (2026-04-03)
+Yes, it works!
+
+
+39. (2026-04-03)
+OK, add maybe on the top banner, next to the date the Client and Project Description so it's clear in which project you are. Next we need to develop the scope change module. In this module scope changes can be recorded by anyone in the project but vendors only have access to the scope changes to which their packages are assigned. A scope change consists of a Description, the details, the cost, the impact on the schedule in months, a package should be selected and the user entering the scope change. When the scope change is submitted, it needs to be reviewed by the PMC Commercial and Client Commercial, linked to the associated package. They can approve or reject, both with mandatory comments. When they need to review, it should be added to their action list and they can enter into the scope change from their action list to perform the review. When rejected, the action becomes with the owner of the scope change and he can update and resubmit, or cancel. When approved by both, the scope change gets a status "Approved" and the project owner can select one or more approved scope changes for one package and create a budget order from it. A separate dashboard should also be created. The scope change module should also be in the permission settings.
+
+
+40. (2026-04-03)
+Can we continue?
+
+
+41. (2026-04-03)
+I again have the same issue for the scope change. I get the error again "Method Not Allowed" when trying to save the scope change.
+
+
+42. (2026-04-03)
+OK, it works. Now the frame of the form of the scope change is still too small and we have the same problem with the frame around the form to open or create a project in the admin view "Project Management"
+
+
+43. (2026-04-03)
+Now the buttons of the scope change form are outside right from the frame
+
+
+44. (2026-04-03)
+I don't see the permission management for scope changes in the settings
+
+
+45. (2026-04-03)
+OK, are you able to create a word file containing all my prompts so far?
+
+
+46. (2026-04-03)
+Yes, please

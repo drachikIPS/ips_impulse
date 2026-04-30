@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImPulSe — by Group IPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%;
+    background:#ffffff;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .logo-wrap { position:relative; z-index:1; }
+  svg { display:block; overflow:visible; }
+
+  .t-ipu { opacity:0; animation: fadeUp 0.55s cubic-bezier(0.22,1,0.36,1) 0.10s forwards; }
+  .t-se  { opacity:0; animation: fadeUp 0.55s cubic-bezier(0.22,1,0.36,1) 0.30s forwards; }
+  .pulse-glow  { stroke-dasharray:340; stroke-dashoffset:340; animation: draw 1.1s cubic-bezier(0.4,0,0.2,1) 0.75s forwards; }
+  .pulse-crisp { stroke-dasharray:340; stroke-dashoffset:340; animation: draw 1.1s cubic-bezier(0.4,0,0.2,1) 0.75s forwards; }
+  .peak-dot  { opacity:0; animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) 1.82s forwards; }
+  .div-left  { opacity:0; animation: fadeIn 0.5s ease 1.55s forwards; }
+  .div-right { opacity:0; animation: fadeIn 0.5s ease 1.55s forwards; }
+  .sub-g     { opacity:0; animation: fadeUp 0.6s cubic-bezier(0.22,1,0.36,1) 1.75s forwards; }
+  .byl-g     { opacity:0; animation: fadeIn 0.6s ease 1.95s forwards; }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
+  @keyframes draw   { to{stroke-dashoffset:0;} }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+  @keyframes popIn  { from{opacity:0;transform:scale(0);} to{opacity:1;transform:scale(1);} }
+</style>
+</head>
+<body>
+<div class="logo-wrap">
+  <!--
+    Layout is fully pre-calculated — no getBBox() calls needed.
+    All coordinates are hardcoded based on measured Barlow Condensed 800 metrics at 96px.
+    Pulse wave sits between "ImPu" and "Se"; divider lines span full subtitle width.
+
+    Key x-positions:
+      impuEnd  ≈ 222   (width of "ImPu" in Barlow Condensed 800 @ 96px, letter-spacing -2)
+      ps       = 226   (impuEnd + 4px gap)
+      pulseEnd = 272   (ps + 46px pulse width)
+      seX      = 276   (pulseEnd + 4px gap)
+      subEnd   ≈ 530   (width of subtitle text)
+  -->
+  <svg id="logo" width="532" height="178" viewBox="0 0 532 178" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+      </filter>
+    </defs>
+
+    <!-- "ImPu" -->
+    <text id="t-impu" class="t-ipu" x="0" y="108"
+      font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="96" letter-spacing="-2">
+      <tspan fill="#1a7abf">I</tspan><tspan fill="#0a2040">m</tspan><tspan fill="#1a7abf">P</tspan><tspan fill="#0a2040">u</tspan>
+    </text>
+
+    <!-- "Se" — x positioned after pulse -->
+    <text id="t-se" class="t-se" x="276" y="108"
+      font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="96" letter-spacing="-2">
+      <tspan fill="#1a7abf">S</tspan><tspan fill="#0a2040">e</tspan>
+    </text>
+
+    <!-- Divider left: from x=0 to start of pulse -->
+    <line id="div-left" class="div-left" x1="0" y1="125" x2="226" y2="125" stroke="#c0d8ec" stroke-width="1"/>
+
+    <!-- Pulse wave glow layer -->
+    <polyline id="pulse-glow" class="pulse-glow"
+      points="226,125 232,125 240,18 250,134 257,75 264,125 272,125"
+      fill="none" stroke="#1a7abf" stroke-width="9"
+      stroke-linecap="round" stroke-linejoin="round"
+      filter="url(#glow)" opacity="0.18"/>
+
+    <!-- Pulse wave crisp layer -->
+    <polyline id="pulse-crisp" class="pulse-crisp"
+      points="226,125 232,125 240,18 250,134 257,75 264,125 272,125"
+      fill="none" stroke="#1a7abf" stroke-width="2.8"
+      stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Peak dot at top of tallest spike -->
+    <circle id="peak-dot" class="peak-dot" cx="240" cy="18" r="3" fill="#1a7abf"/>
+
+    <!-- Divider right: from end of pulse to end of subtitle -->
+    <line id="div-right" class="div-right" x1="272" y1="125" x2="530" y2="125" stroke="#c0d8ec" stroke-width="1"/>
+
+    <!-- Subtitle -->
+    <text id="t-sub" class="sub-g" x="0" y="151"
+      font-family="'Barlow',sans-serif" font-weight="400" font-size="13.5"
+      letter-spacing="3.5" fill="#2d6699">PLAN.  ANTICIPATE.  DELIVER.  TOGETHER.</text>
+
+    <!-- Byline -->
+    <text id="t-byl" class="byl-g" x="0" y="171"
+      font-family="'Barlow',sans-serif" font-weight="600" font-size="9.5"
+      letter-spacing="3" fill="#9ab8cc">BY GROUP IPS</text>
+  </svg>
+</div>
+
+<script>
+  // Refine layout once fonts are confirmed loaded, with a safe fallback timeout.
+  // All elements already have valid hardcoded coordinates, so even if this
+  // script never runs the logo will render correctly.
+  function refineLayout() {
+    try {
+      var baseline  = 125;
+      var capTop    = 18;
+      var pulseW    = 46;
+      var gapBefore = 4;
+      var gapAfter  = 4;
+
+      var impu    = document.getElementById('t-impu');
+      var bb      = impu.getBBox();
+
+      // Only proceed if getBBox returned a sensible width (font loaded correctly)
+      if (!bb || bb.width < 50) return;
+
+      var impuEnd = bb.x + bb.width;
+      var ps      = impuEnd + gapBefore;
+      var seX     = ps + pulseW + gapAfter;
+
+      document.getElementById('t-se').setAttribute('x', seX);
+
+      var pts = [
+        ps+','+baseline,
+        (ps+6)+','+baseline,
+        (ps+14)+','+capTop,
+        (ps+24)+','+(baseline+9),
+        (ps+31)+','+(baseline-50),
+        (ps+38)+','+baseline,
+        (ps+pulseW)+','+baseline
+      ].join(' ');
+
+      document.getElementById('pulse-glow').setAttribute('points', pts);
+      document.getElementById('pulse-crisp').setAttribute('points', pts);
+      document.getElementById('peak-dot').setAttribute('cx', ps + 14);
+      document.getElementById('div-left').setAttribute('x2', ps);
+      document.getElementById('div-right').setAttribute('x1', ps + pulseW);
+
+      // Give subtitle text time to settle before measuring it
+      setTimeout(function() {
+        try {
+          var subBB  = document.getElementById('t-sub').getBBox();
+          if (!subBB || subBB.width < 50) return;
+          var subEnd = subBB.x + subBB.width;
+          document.getElementById('div-right').setAttribute('x2', subEnd);
+          var totalW = Math.ceil(subEnd) + 2;
+          var svg = document.getElementById('logo');
+          svg.setAttribute('viewBox', '0 0 ' + totalW + ' 178');
+          svg.setAttribute('width', totalW);
+        } catch(e) {}
+      }, 200);
+
+    } catch(e) {}
+  }
+
+  // Primary: wait for fonts via document.fonts.ready
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function() {
+      setTimeout(refineLayout, 50);
+    });
+  }
+
+  // Fallback: run after full page load regardless
+  window.addEventListener('load', function() {
+    setTimeout(refineLayout, 300);
+  });
+</script>
+</body>
+</html>

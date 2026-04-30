@@ -1,0 +1,35 @@
+<svg width="442" height="178" viewBox="0 0 442 178" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&amp;family=Barlow:wght@400;600');</style>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+    </filter>
+  </defs>
+
+  <text x="0" y="108"
+    font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="96" letter-spacing="-2">
+    <tspan fill="#1a7abf">I</tspan><tspan fill="#0a2040">m</tspan><tspan fill="#1a7abf">P</tspan><tspan fill="#0a2040">u</tspan>
+  </text>
+
+  <line x1="0" y1="125" x2="186" y2="125" stroke="#c0d8ec" stroke-width="1"/>
+
+  <polyline points="186,125 192,125 200,18 210,134 217,72 224,125 232,125"
+    fill="none" stroke="#1a7abf" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)" opacity="0.18"/>
+  <polyline points="186,125 192,125 200,18 210,134 217,72 224,125 232,125"
+    fill="none" stroke="#1a7abf" stroke-width="2.8"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="200" cy="18" r="3" fill="#1a7abf"/>
+
+  <line x1="232" y1="125" x2="440" y2="125" stroke="#c0d8ec" stroke-width="1"/>
+
+  <text x="232" y="108"
+    font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="96" letter-spacing="-2">
+    <tspan fill="#1a7abf">S</tspan><tspan fill="#0a2040">e</tspan>
+  </text>
+
+  <text x="0" y="151"
+    font-family="'Barlow',sans-serif" font-weight="400" font-size="13.5" letter-spacing="3.5" fill="#2d6699">PLAN.  ANTICIPATE.  DELIVER.  TOGETHER.</text>
+  <text x="0" y="171"
+    font-family="'Barlow',sans-serif" font-weight="600" font-size="9.5" letter-spacing="3" fill="#9ab8cc">BY GROUP IPS</text>
+</svg>

@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>IPS Project ImPulse Suite</title>
+
+  <!-- PWA: Add to Home Screen → standalone full-screen launch -->
+  <link rel="manifest" href="/static/manifest.webmanifest"/>
+  <meta name="theme-color" content="#1B4F8C"/>
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="IPS"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <script src="/static/vendor/tailwindcss/tailwindcss-3.4.16.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'ips-blue': '#00AEEF',
+            'ips-dark': '#1B4F8C',
+            'ips-light': '#E8F4FD',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=7"/>
+  <script src="/static/vendor/chart.js/chart-4.4.7.umd.min.js"></script>
+  <script src="/static/vendor/chartjs-plugin-datalabels/chartjs-plugin-datalabels-2.2.0.min.js"></script>
+  <script src="/static/vendor/vue/vue-3.5.13.global.prod.js"></script>
+  <script src="/static/vendor/mermaid/mermaid-10.9.3.min.js"></script>
+  <script src="/static/vendor/html2canvas/html2canvas-1.4.1.min.js"></script>
+  <script src="/static/vendor/jspdf/jspdf-2.5.1.umd.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: 'base', themeVariables: { primaryColor: '#E8F4FD', primaryBorderColor: '#1B4F8C', primaryTextColor: '#1B4F8C', lineColor: '#1B4F8C', secondaryColor: '#F3E8FF', tertiaryColor: '#fff' } });</script>
+</head>
+<body class="bg-gray-100">
+
+<div id="app">
+
+  <!-- ══════════════════════════════════════════════════════════
+       LOGIN PAGE
+  ══════════════════════════════════════════════════════════ -->
+  <div v-if="!isLoggedIn" class="login-page">
+    <img src="/static/assets/circle-darkblue.png" class="login-bg-circle" alt=""/>
+
+    <div class="login-card">
+      <div class="text-center mb-6">
+        <iframe src="/static/assets/impulse-startup-light.html" class="login-animation" frameborder="0" scrolling="no"></iframe>
+        <p class="text-gray-500 text-sm mt-2">Sign in to your account</p>
+      </div>
+
+      <form @submit.prevent="login" class="space-y-4">
+        <div>
+          <label class="form-label">Email Address</label>
+          <input v-model="loginForm.email" type="email" class="input-field" placeholder="your@email.com" autofocus/>
+        </div>
+        <div>
+          <label class="form-label">Password</label>
+          <input v-model="loginForm.password" type="password" class="input-field" placeholder="••••••••"/>
+        </div>
+        <p v-if="loginError" class="text-red-500 text-sm bg-red-50 px-3 py-2 rounded-lg">{{ loginError }}</p>
+        <button type="submit" :disabled="loginLoading" class="btn-primary w-full justify-center text-base py-3">
+          <img v-if="loginLoading" src="/static/assets/impulse-loader.svg" class="h-5 mr-2" alt="Loading"/>
+          {{ loginLoading ? 'Signing in...' : 'Sign In' }}
+        </button>
+      </form>
+
+      <p class="text-center text-xs text-gray-400 mt-6">
+        by Group IPS &copy; {{ new Date().getFullYear() }}
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PASSWORD CHANGE (first login)
+  ══════════════════════════════════════════════════════════ -->
+  <div v-else-if="mustChangePassword" class="login-page">
+    <img src="/static/assets/circle-darkblue.png" class="login-bg-circle" alt=""/>
+
+    <div class="login-card">
+      <div class="text-center mb-8">
+        <img src="/static/assets/impulse-logo-light@2x.png" alt="ImPulSe" class="h-20 mx-auto mb-2"/>
+        <h1 class="text-xl font-bold text-gray-800">Set Your Password</h1>
+        <p class="text-gray-500 text-sm mt-1">Please choose a new password before continuing.</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="form-label">New Password</label>
+          <input v-model="changePasswordForm.new_password" type="password" class="input-field" placeholder="Minimum 6 characters" autofocus/>
+        </div>
+        <div>
+          <label class="form-label">Confirm Password</label>
+          <input v-model="changePasswordForm.confirm_password" type="password" class="input-field" placeholder="Repeat your new password" @keyup.enter="submitChangePassword"/>
+        </div>
+        <p v-if="changePasswordError" class="text-red-500 text-sm bg-red-50 px-3 py-2 rounded-lg">{{ changePasswordError }}</p>
+        <button @click="submitChangePassword" :disabled="changingPassword" class="btn-primary w-full justify-center text-base py-3">
+          <svg v-if="changingPassword" class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          {{ changingPassword ? 'Saving...' : 'Set Password & Continue' }}
+        </button>
+        <button @click="logout" class="w-full text-center text-sm text-gray-400 hover:text-gray-600 mt-2">
+          Sign out
+        </button>
+      </div>
+
+      <p class="text-center text-xs text-gray-400 mt-6">
+        by Group IPS &copy; {{ new Date().getFullYear() }}
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PROJECT SELECTOR
+  ══════════════════════════════════════════════════════════ -->
+  <div v-else-if="showProjectSelector" class="min-h-screen bg-gray-100 flex flex-col">
+    <!-- Header -->
+    <div class="shadow-md px-8 py-4 flex items-center justify-between" style="background:#0B1D3A">
+      <div class="flex items-center gap-3">
+        <img src="/static/assets/impulse-logo-dark@2x.png" alt="ImPulSe" class="h-12"/>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-white text-sm opacity-70">{{ currentUser && currentUser.name }}</span>
+        <button @click="logout" class="text-white opacity-60 hover:opacity-100 transition-opacity" title="Sign out">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 flex flex-col items-center p-8">
+      <div class="w-full">
+
+        <!-- Page header with admin buttons -->
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800">
+              <span v-if="!welcomeView">Select a Project</span>
+              <span v-else-if="welcomeView === 'users'">User Management</span>
+              <span v-else-if="welcomeView === 'project-setup'">Project Setup</span>
+              <span v-else-if="welcomeView === 'lessons-portal'">Lessons Learned Portal</span>
+            </h2>
+            <p class="text-gray-500 text-sm mt-1">Select a project to get started</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Back button when in admin view -->
+            <button v-if="welcomeView" @click="welcomeView = null"
+              class="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+              </svg>
+              Back to Projects
+            </button>
+            <!-- Admin / PO buttons -->
+            <template v-if="!welcomeView">
+              <button v-if="isAdmin" @click="runDemoSeed" :disabled="seedingDemo"
+                class="flex items-center gap-2 px-4 py-2 bg-white border border-purple-200 text-purple-700 text-sm font-medium rounded-lg hover:bg-purple-50 transition-colors shadow-sm disabled:opacity-50"
+                :title="'Create full demo project DEMO-FULL-2026 with records in every module'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                </svg>
+                {{ seedingDemo ? 'Seeding…' : 'Seed Full Demo' }}
+              </button>
+              <button v-if="canManageUsers" @click="welcomeView = 'lessons-portal'"
+                class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+                <span class="nav-label">Lessons Learned Portal</span>
+              </button>
+              <button v-if="isAdmin" @click="welcomeView = 'users'"
+                class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <span class="nav-label">User Management</span>
+              </button>
+              <button v-if="isAdmin" @click="welcomeView = 'project-setup'"
+                class="flex items-center gap-2 px-4 py-2 bg-ips-blue text-white text-sm font-medium rounded-lg hover:bg-ips-dark transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="nav-label">Project Setup</span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Seed-demo status message -->
+        <div v-if="seedDemoMessage && !welcomeView"
+          class="mb-4 px-4 py-2 rounded-lg text-sm border"
+          :class="seedDemoMessage.startsWith('Failed') ? 'border-red-300 bg-red-50 text-red-800' : 'border-emerald-300 bg-emerald-50 text-emerald-800'">
+          {{ seedDemoMessage }}
+        </div>
+
+        <!-- ── Admin: User Management ── -->
+        <div v-if="welcomeView === 'users'">
+          <users-module></users-module>
+        </div>
+
+        <!-- ── Admin: Project Setup ── -->
+        <div v-else-if="welcomeView === 'project-setup'">
+          <project-management-module :current-user="currentUser"></project-management-module>
+        </div>
+
+        <!-- ── Admin / PO: Lessons Learned Portal ── -->
+        <div v-else-if="welcomeView === 'lessons-portal'">
+          <lessons-learned-portal :current-user="currentUser" @back="welcomeView = null"></lessons-learned-portal>
+        </div>
+
+        <!-- ── Project list ── -->
+        <div v-else>
+          <!-- Loading -->
+          <div v-if="projectsLoading" class="flex flex-col items-center justify-center py-16">
+            <img src="/static/assets/impulse-loader.svg" class="h-10" alt="Loading"/>
+          </div>
+
+          <!-- Empty -->
+          <div v-else-if="userProjects.length === 0" class="text-center py-16 bg-white rounded-xl border border-gray-200">
+            <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"></path>
+            </svg>
+            <p class="text-gray-500 font-medium">No projects available</p>
+            <p class="text-gray-400 text-sm mt-1">Contact an administrator to get access to a project.</p>
+          </div>
+
+          <!-- Search + status toggle -->
+          <div v-else class="flex flex-wrap items-center gap-3 mb-3">
+            <div class="relative flex-1 min-w-[240px] max-w-md">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+              </svg>
+              <input v-model="pickerSearch" type="search"
+                     placeholder="Search by project number, description, client, location, role…"
+                     class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-ips-blue/40 focus:border-ips-blue"/>
+            </div>
+            <div class="inline-flex rounded-lg border border-gray-200 bg-white overflow-hidden text-xs">
+              <button v-for="opt in [
+                        {key:'ACTIVE',  label:'Active'},
+                        {key:'ON_HOLD', label:'On Hold'},
+                        {key:'CLOSED',  label:'Closed'},
+                        {key:'ALL',     label:'All'}]"
+                      :key="opt.key"
+                      @click="pickerStatusFilter = opt.key"
+                      :class="['px-3 py-1.5 font-medium border-r border-gray-200 last:border-r-0',
+                               pickerStatusFilter === opt.key
+                                 ? 'bg-ips-blue text-white'
+                                 : 'text-gray-600 hover:bg-gray-50']">
+                {{ opt.label }}
+                <span :class="['ml-1 px-1.5 rounded text-[10px]',
+                               pickerStatusFilter === opt.key
+                                 ? 'bg-white/20'
+                                 : 'bg-gray-100 text-gray-500']">
+                  {{ pickerStatusCounts[opt.key] || 0 }}
+                </span>
+              </button>
+            </div>
+            <div class="ml-auto text-xs text-gray-400">
+              {{ filteredUserProjects.length }} of {{ userProjects.length }}
+            </div>
+          </div>
+
+          <!-- No results for current filter -->
+          <div v-if="userProjects.length > 0 && filteredUserProjects.length === 0"
+               class="text-center py-12 bg-white rounded-xl border border-gray-200 text-gray-400 text-sm">
+            No projects match the current filter.
+          </div>
+
+          <!-- Project table -->
+          <div v-else-if="userProjects.length > 0" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-6"></th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Project</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Client</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Timeline</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">My Role</th>
+                  <th class="px-4 py-3 w-40"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in filteredUserProjects" :key="p.id"
+                  class="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                  <!-- Status dot -->
+                  <td class="px-4 py-3">
+                    <span :class="['w-2.5 h-2.5 rounded-full block mx-auto',
+                      p.status === 'ACTIVE' ? 'bg-green-500' :
+                      p.status === 'ON_HOLD' ? 'bg-yellow-400' : 'bg-gray-400']">
+                    </span>
+                  </td>
+                  <!-- Project number + description -->
+                  <td class="px-4 py-3">
+                    <div class="font-bold text-gray-800">{{ p.project_number }}</div>
+                    <div v-if="p.description" class="text-xs text-gray-500 mt-0.5">{{ p.description }}</div>
+                    <div v-if="p.client_reference" class="text-xs text-gray-400 mt-0.5">Ref: {{ p.client_reference }}</div>
+                  </td>
+                  <td class="px-4 py-3 text-gray-700">{{ p.client || '—' }}</td>
+                  <td class="px-4 py-3 text-gray-600">{{ p.location || '—' }}</td>
+                  <!-- Timeline -->
+                  <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+                    <span v-if="p.start_date || p.end_date">{{ p.start_date || '—' }} → {{ p.end_date || '—' }}</span>
+                    <span v-else class="text-gray-400">—</span>
+                  </td>
+                  <!-- Status badge -->
+                  <td class="px-4 py-3">
+                    <span :class="['text-xs font-semibold px-2 py-0.5 rounded-full',
+                      p.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                      p.status === 'ON_HOLD' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-500']">
+                      {{ p.status }}
+                    </span>
+                    <div v-if="p.status === 'CLOSED' && p.overall_result"
+                      :class="['text-xs font-medium mt-1',
+                        p.overall_result === 'SUCCESS' ? 'text-green-600' :
+                        p.overall_result === 'PARTIAL_SUCCESS' ? 'text-yellow-600' : 'text-red-600']">
+                      {{ p.overall_result === 'SUCCESS' ? 'Success' : p.overall_result === 'PARTIAL_SUCCESS' ? 'Partial' : 'Unsuccessful' }}
+                    </div>
+                  </td>
+                  <!-- Role -->
+                  <td class="px-4 py-3">
+                    <span v-if="p.my_role" class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{{ p.my_role }}</span>
+                    <span v-else class="text-gray-400">—</span>
+                  </td>
+                  <!-- Actions -->
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2 justify-end">
+                      <button @click="selectProject(p)"
+                        class="px-3 py-1.5 bg-ips-blue text-white text-xs font-semibold rounded-lg hover:bg-ips-dark transition-colors">
+                        Enter
+                      </button>
+                      <button v-if="p.status !== 'CLOSED' && (isAdmin || p.my_role === 'PROJECT_OWNER')"
+                        @click="openCloseProject(p)"
+                        class="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg hover:bg-red-100 hover:text-red-700 transition-colors">
+                        Close
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MAIN APP
+  ══════════════════════════════════════════════════════════ -->
+  <div v-else class="flex">
+
+    <!-- Sidebar -->
+    <aside :class="['sidebar', sidebarCollapsed ? 'collapsed' : '']">
+      <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? 'Expand' : 'Collapse'">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="sidebar-logo">
+        <img src="/static/assets/impulse-logo-dark@2x.png" alt="ImPulSe" class="h-14"/>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button v-if="!isBidder && moduleVisible('contacts')" @click="setModule('contacts')"
+          :class="['nav-item w-full text-left', activeModule === 'contacts' ? 'active' : '']" :title="sidebarCollapsed ? 'Project Organization' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <span class="nav-label">Project Organization</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('my-points')" @click="setModule('my-points')"
+          :class="['nav-item w-full text-left', activeModule === 'my-points' ? 'active' : '']" :title="sidebarCollapsed ? 'My Action Points' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+          </svg>
+          <span class="nav-label">My Action Points</span>
+        </button>
+
+        <button v-if="moduleVisible('meetings')" @click="setModule('meetings')"
+          :class="['nav-item w-full text-left', activeModule === 'meetings' ? 'active' : '']" :title="sidebarCollapsed ? 'Meetings' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          <span class="nav-label">Meetings</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('schedule')" @click="setModule('schedule')"
+          :class="['nav-item w-full text-left', activeModule === 'schedule' ? 'active' : '']" :title="sidebarCollapsed ? 'Schedule' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <span class="nav-label">Schedule</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('budget')" @click="setModule('budget')"
+          :class="['nav-item w-full text-left', activeModule === 'budget' ? 'active' : '']" :title="sidebarCollapsed ? 'Budget Management' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="nav-label">Budget Management</span>
+        </button>
+
+        <button v-if="!isVendor && !isBidder && moduleVisible('risks')" @click="setModule('risks')"
+          :class="['nav-item w-full text-left', activeModule === 'risks' ? 'active' : '']" :title="sidebarCollapsed ? 'Risk Register' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+          <span class="nav-label">Risk Register</span>
+        </button>
+
+        <button v-if="!isVendor && moduleVisible('procurement')" @click="setModule('procurement')"
+          :class="['nav-item w-full text-left', activeModule === 'procurement' ? 'active' : '']" :title="sidebarCollapsed ? 'Procurement' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+          </svg>
+          <span class="nav-label">Procurement</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('scope-changes')" @click="setModule('scope-changes')"
+          :class="['nav-item w-full text-left', activeModule === 'scope-changes' ? 'active' : '']" :title="sidebarCollapsed ? 'Scope Changes' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+          </svg>
+          <span class="nav-label">Scope Changes</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('documents')" @click="setModule('documents')"
+          :class="['nav-item w-full text-left', activeModule === 'documents' ? 'active' : '']" :title="sidebarCollapsed ? 'Documents' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+          </svg>
+          <span class="nav-label">Documents</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('quality-control')" @click="setModule('quality-control')"
+          :class="['nav-item w-full text-left', activeModule === 'quality-control' ? 'active' : '']" :title="sidebarCollapsed ? 'Quality Control' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+          </svg>
+          <span class="nav-label">Quality Control</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('construction')" @click="setModule('construction')"
+          :class="['nav-item w-full text-left', activeModule === 'construction' ? 'active' : '']" :title="sidebarCollapsed ? 'Construction' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+          </svg>
+          <span class="nav-label">Construction</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('safety')" @click="setModule('safety')"
+          :class="['nav-item w-full text-left', activeModule === 'safety' ? 'active' : '']" :title="sidebarCollapsed ? 'Safety' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span class="nav-label">Safety</span>
+        </button>
+
+        <button v-if="!isBidder && moduleVisible('files')" @click="setModule('files')"
+          :class="['nav-item w-full text-left', activeModule === 'files' ? 'active' : '']" :title="sidebarCollapsed ? 'Files' : ''">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+          </svg>
+          <span class="nav-label">Files</span>
+        </button>
+
+        <div v-if="canManageUsers || isAdmin" class="mt-4 pt-4" style="border-top:1px solid rgba(255,255,255,0.2)">
+          <p class="text-xs uppercase tracking-wider px-3 mb-2 nav-label" style="color:rgba(255,255,255,0.4)">Admin</p>
+          <button v-if="isAdmin" @click="setModule('projects')"
+            :class="['nav-item w-full text-left', activeModule === 'projects' ? 'active' : '']" :title="sidebarCollapsed ? 'Project Setup' : ''">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"></path>
+            </svg>
+            <span class="nav-label">Project Setup</span>
+          </button>
+          <button v-if="isAdmin" @click="setModule('users')"
+            :class="['nav-item w-full text-left', activeModule === 'users' ? 'active' : '']" :title="sidebarCollapsed ? 'User Management' : ''">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="nav-label">User Management</span>
+          </button>
+          <button v-if="canManageUsers" @click="setModule('settings')"
+            :class="['nav-item w-full text-left', activeModule === 'settings' ? 'active' : '']" :title="sidebarCollapsed ? 'Settings' : ''">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="nav-label">Settings</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- User info at bottom -->
+      <div class="p-4 sidebar-user-section" style="border-top:1px solid rgba(255,255,255,0.2)">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+            style="background:rgba(255,255,255,0.2)" :title="sidebarCollapsed ? (currentUser && currentUser.name) : ''">
+            {{ initials(currentUser && currentUser.name) }}
+          </div>
+          <div class="flex-1 min-w-0 sidebar-user-info">
+            <p class="text-white text-sm font-medium truncate">{{ currentUser && currentUser.name }}</p>
+            <p class="text-xs truncate" style="color:rgba(255,255,255,0.5)">{{ currentUser && currentUser.role }}</p>
+          </div>
+          <button @click="openProfileModal" title="My Profile" class="transition-colors sidebar-user-info" style="color:rgba(255,255,255,0.5)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </button>
+          <button @click="logout" title="Sign out" class="transition-colors sidebar-user-info" style="color:rgba(255,255,255,0.5)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Project Start-up slide-over (root-level so navigation doesn't unmount it) -->
+    <transition
+      enter-active-class="transition-opacity duration-150"
+      enter-from-class="opacity-0" enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-150"
+      leave-from-class="opacity-100" leave-to-class="opacity-0">
+      <div v-if="activeStartupTask"
+           class="fixed inset-0 z-40 bg-black/30"
+           @click.self="closeStartupPanel"></div>
+    </transition>
+    <transition
+      enter-active-class="transition-transform duration-300 ease-out"
+      enter-from-class="translate-x-full" enter-to-class="translate-x-0"
+      leave-active-class="transition-transform duration-200 ease-in"
+      leave-from-class="translate-x-0" leave-to-class="translate-x-full">
+      <aside v-if="activeStartupTask"
+             class="fixed top-0 right-0 z-50 h-full w-full sm:w-[480px] bg-white shadow-2xl flex flex-col">
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-gray-200 flex items-start justify-between gap-3" style="background:#FFF7ED">
+          <div>
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-amber-700">Project Start-up</div>
+            <h3 class="text-base font-semibold text-gray-800 mt-0.5 leading-snug">{{ activeStartupTask.title }}</h3>
+          </div>
+          <button @click="closeStartupPanel" class="text-gray-400 hover:text-gray-600 shrink-0" title="Close">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-5 py-4">
+          <p class="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{{ activeStartupTask.body }}</p>
+        </div>
+        <!-- Footer / actions -->
+        <div class="px-5 py-4 border-t border-gray-200 bg-gray-50 space-y-2">
+          <p class="text-xs text-gray-500">
+            Closing this item removes it from every project owner's list.
+            "Keep open" just dismisses this panel and leaves the action in the list.
+          </p>
+          <div class="flex items-center justify-between gap-2">
+            <button @click="keepOpenStartup"
+                    :disabled="closingStartupTask"
+                    class="btn-secondary flex-1 justify-center">
+              Keep open
+            </button>
+            <button @click="closeStartupAndStay"
+                    :disabled="closingStartupTask"
+                    class="btn-primary flex-1 justify-center">
+              {{ closingStartupTask ? 'Closing…' : 'Close action' }}
+            </button>
+          </div>
+        </div>
+      </aside>
+    </transition>
+
+    <!-- My Profile Modal -->
+    <div v-if="showProfileModal" class="modal-overlay" @click.self="showProfileModal = false">
+      <div class="modal-box" style="max-width:440px">
+        <div class="modal-header">
+          <h3 class="text-lg font-semibold text-gray-800">My Profile</h3>
+          <button @click="showProfileModal = false" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body space-y-4">
+          <p class="text-xs text-gray-500">Changes to your name and phone are automatically applied to every project contact list linked to your account.</p>
+          <div>
+            <label class="form-label">Full Name</label>
+            <input v-model="profileForm.name" type="text" class="input-field" placeholder="Your name"/>
+          </div>
+          <div>
+            <label class="form-label">Email</label>
+            <input :value="currentUser && currentUser.email" type="email" class="input-field bg-gray-100 text-gray-500 cursor-not-allowed" disabled/>
+            <p class="text-xs text-gray-400 mt-1">Email can only be changed by an administrator.</p>
+          </div>
+          <div>
+            <label class="form-label">Phone</label>
+            <input v-model="profileForm.phone" type="text" class="input-field" placeholder="+32 ..."/>
+          </div>
+          <p v-if="profileError" class="text-red-500 text-sm">{{ profileError }}</p>
+          <p v-if="profileSaved" class="text-green-600 text-sm">Profile saved.</p>
+
+          <!-- Change password -->
+          <div class="border-t border-gray-200 pt-4 mt-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-2">Change Password</h4>
+            <p class="text-xs text-gray-500 mb-3">Pick a new password (minimum 6 characters). The change takes effect immediately.</p>
+            <div class="space-y-3">
+              <div>
+                <label class="form-label">New Password</label>
+                <input v-model="passwordForm.new_password" type="password" autocomplete="new-password"
+                       class="input-field" placeholder="Minimum 6 characters"/>
+              </div>
+              <div>
+                <label class="form-label">Confirm Password</label>
+                <input v-model="passwordForm.confirm_password" type="password" autocomplete="new-password"
+                       class="input-field" placeholder="Repeat your new password"
+                       @keyup.enter="saveNewPassword"/>
+              </div>
+              <p v-if="passwordError" class="text-red-500 text-sm">{{ passwordError }}</p>
+              <p v-if="passwordSaved" class="text-green-600 text-sm">Password updated.</p>
+              <button @click="saveNewPassword"
+                      :disabled="savingPassword || !passwordForm.new_password || !passwordForm.confirm_password"
+                      class="btn-secondary w-full justify-center">
+                {{ savingPassword ? 'Updating...' : 'Update Password' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showProfileModal = false" class="btn-secondary">Close</button>
+          <button @click="saveProfile" :disabled="savingProfile" class="btn-primary">
+            {{ savingProfile ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div :class="['main-content flex-1', sidebarCollapsed ? 'sidebar-collapsed' : '']">
+
+      <!-- Top header -->
+      <header class="top-header">
+        <h1 class="text-lg font-semibold text-gray-800">{{ pageTitle }}</h1>
+        <div class="flex items-center gap-4 text-sm text-gray-500">
+          <span>{{ currentDate }}</span>
+
+          <!-- Help button — opens the Help Center -->
+          <button @click="setModule('help')"
+            :class="['help-icon-btn', activeModule === 'help' ? 'active' : '']"
+            title="Open Help Center" aria-label="Open Help Center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.5M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/>
+            </svg>
+          </button>
+
+          <!-- Impersonate button (real admin only, not during impersonation) -->
+          <button v-if="isRealAdmin && !impersonating && currentProject"
+            @click="showImpersonateModal = true"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Impersonate
+          </button>
+
+          <div v-if="currentProject" class="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5">
+            <span :class="['w-2 h-2 rounded-full flex-shrink-0', projectStatusColor]"></span>
+            <span class="font-medium text-gray-700">{{ currentProject.project_number }}</span>
+            <span v-if="currentProject.client" class="text-gray-600 font-medium hidden md:inline">| {{ currentProject.client }}</span>
+            <span v-if="currentProject.description" class="text-gray-400 hidden lg:inline">— {{ currentProject.description }}</span>
+            <button @click="switchProject" class="ml-1 text-ips-blue hover:text-ips-dark font-medium text-xs transition-colors">
+              Switch
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Impersonation banner -->
+      <div v-if="impersonating" class="flex items-center justify-between px-5 py-2.5 text-sm" style="background:#7C3AED;color:#fff">
+        <div class="flex items-center gap-2.5">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+          </svg>
+          <span>Impersonating <strong>{{ impersonating.name }}</strong></span>
+          <span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:rgba(255,255,255,0.2)">{{ impersonating.role }}</span>
+          <span style="color:rgba(255,255,255,0.65)" class="text-xs hidden md:inline">— You are viewing the platform as this user</span>
+        </div>
+        <button @click="stopImpersonation()"
+          class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-colors"
+          style="background:rgba(255,255,255,0.15);color:#fff;hover:background:rgba(255,255,255,0.25)">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          Exit Impersonation
+        </button>
+      </div>
+
+      <!-- Module: Project Organization -->
+      <div v-if="activeModule === 'contacts'" class="content-area">
+        <contacts-module :current-user="currentUser" :current-project="currentProject"
+          :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          :can-export-full-db="canExportFullDb()" :exporting-full-db="exportingFullDb"
+          @subtab-change="setSubtab" @record-change="onRecordChange"
+          @export-full-db="exportFullProjectDb"></contacts-module>
+      </div>
+
+      <!-- Module: Meeting Management -->
+      <div v-else-if="activeModule === 'meetings'">
+        <div v-if="!openMeetingId" class="sub-tab-bar">
+          <button @click="setMeetingSubTab('types')" :class="['sub-tab', meetingSubTab === 'types' ? 'active' : '']">
+            Meeting Types
+          </button>
+          <button v-if="currentUser && currentUser.role !== 'BIDDER'" @click="setMeetingSubTab('weekly')" :class="['sub-tab', meetingSubTab === 'weekly' ? 'active' : '']">
+            Weekly View
+          </button>
+          <button @click="setMeetingSubTab('meetings')" :class="['sub-tab', meetingSubTab === 'meetings' ? 'active' : '']">
+            Meetings
+          </button>
+          <button @click="setMeetingSubTab('points')" :class="['sub-tab', meetingSubTab === 'points' ? 'active' : '']">
+            All Points
+          </button>
+          <button v-if="currentUser && ['ADMIN','PROJECT_OWNER','PROJECT_TEAM','CLIENT'].includes(currentUser.role)"
+            @click="setMeetingSubTab('dashboard')" :class="['sub-tab', meetingSubTab === 'dashboard' ? 'active' : '']">
+            Dashboard
+          </button>
+        </div>
+
+        <div class="content-area">
+          <meeting-detail v-if="openMeetingId"
+            :meeting-id="openMeetingId"
+            :contacts="contacts"
+            :current-user="currentUser"
+            v-on:back="backFromMeeting">
+          </meeting-detail>
+
+          <meeting-types-module v-else-if="meetingSubTab === 'types'"
+            :contacts="contacts"
+            :current-user="currentUser">
+          </meeting-types-module>
+
+          <meeting-weekly-schedule v-else-if="meetingSubTab === 'weekly'"
+            :meeting-types="meetingTypes"
+            :contacts="contacts">
+          </meeting-weekly-schedule>
+
+          <meetings-module v-else-if="meetingSubTab === 'meetings'"
+            :contacts="contacts"
+            :meeting-types="meetingTypes"
+            :current-user="currentUser"
+            v-on:open-meeting="openMeeting">
+          </meetings-module>
+
+          <meeting-points-view v-else-if="meetingSubTab === 'points'"
+            :contacts="contacts"
+            :meetings="meetings"
+            :current-user="currentUser"
+            :pending-open="pendingOpen">
+          </meeting-points-view>
+
+          <dashboard-view v-else-if="meetingSubTab === 'dashboard'"
+            :current-user="currentUser"
+            :meeting-types="meetingTypes">
+          </dashboard-view>
+        </div>
+      </div>
+
+      <!-- Module: My Action Points -->
+      <div v-else-if="activeModule === 'my-points'" class="content-area">
+        <div v-if="!currentUser || !currentUser.contact_id" class="card text-center py-10">
+          <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p class="text-gray-500">Your account is not linked to a contact yet.</p>
+          <p class="text-gray-400 text-sm mt-1">Ask an admin to link your account to a contact in User Management.</p>
+        </div>
+        <my-action-points v-else
+          :current-user="currentUser"
+          @open-record="handleOpenRecord"
+          @navigate-tab="navigateToTab"
+          @startup-task-open="onStartupTaskOpen">
+        </my-action-points>
+      </div>
+
+      <!-- Module: Budget Management -->
+      <div v-else-if="activeModule === 'budget'" class="content-area">
+        <budget-module :current-user="currentUser" :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></budget-module>
+      </div>
+
+      <!-- Module: Risk Register -->
+      <div v-else-if="activeModule === 'risks'" class="content-area">
+        <risk-register-module :current-user="currentUser" :contacts="contacts" :pending-open="pendingOpen"
+          :initial-tab="activeSubtab" @subtab-change="setSubtab" @record-change="onRecordChange"></risk-register-module>
+      </div>
+
+      <!-- Module: Schedule Management -->
+      <div v-else-if="activeModule === 'schedule'">
+        <schedule-module :current-user="currentUser" :contacts="contacts" :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></schedule-module>
+      </div>
+
+      <!-- Module: Procurement -->
+      <div v-else-if="activeModule === 'procurement'">
+        <procurement-module :current-user="currentUser" :contacts="contacts" :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></procurement-module>
+      </div>
+
+      <!-- Module: Scope Changes -->
+      <div v-else-if="activeModule === 'scope-changes'" class="content-area">
+        <scope-changes-module :current-user="currentUser" :contacts="contacts" :pending-open="pendingOpen"
+          :initial-tab="activeSubtab" @subtab-change="setSubtab" @record-change="onRecordChange"></scope-changes-module>
+      </div>
+
+      <!-- Module: Document Management -->
+      <div v-else-if="activeModule === 'documents'" class="content-area">
+        <document-management-module :current-user="currentUser" :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></document-management-module>
+      </div>
+
+      <!-- Module: Quality Control -->
+      <div v-else-if="activeModule === 'quality-control'" class="content-area">
+        <quality-control-module :current-user="currentUser" :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></quality-control-module>
+      </div>
+
+      <!-- Module: Construction -->
+      <div v-else-if="activeModule === 'construction'" class="content-area">
+        <construction-module :current-user="currentUser" :initial-tab="activeSubtab" :pending-open="pendingOpen"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></construction-module>
+      </div>
+
+      <!-- Module: Safety -->
+      <div v-else-if="activeModule === 'safety'" class="content-area">
+        <safety-module :current-user="currentUser" :pending-open="pendingOpen" :initial-tab="activeSubtab"
+          @subtab-change="setSubtab" @record-change="onRecordChange"></safety-module>
+      </div>
+
+      <!-- Module: Files -->
+      <div v-else-if="activeModule === 'files'" class="content-area">
+        <file-master-list-module :current-user="currentUser" @open-record="handleOpenRecord"></file-master-list-module>
+      </div>
+
+      <!-- Module: Help -->
+      <div v-else-if="activeModule === 'help'" class="content-area">
+        <help-center :current-user="currentUser"></help-center>
+      </div>
+
+
+      <!-- Module: Settings (Admin) -->
+      <div v-else-if="activeModule === 'settings'" class="content-area">
+        <settings-module
+          :current-user="currentUser"
+          :module-configs="moduleConfigs"
+          :module-visibility="moduleVisibility"
+          @toggle-module="toggleModuleVisibility"
+          @open-help="openHelpSection">
+        </settings-module>
+      </div>
+
+      <!-- Module: User Management (Admin) -->
+      <div v-else-if="activeModule === 'users'" class="content-area">
+        <users-module :contacts="contacts"></users-module>
+      </div>
+
+      <!-- Module: Project Management (Admin) -->
+      <div v-else-if="activeModule === 'projects'" class="content-area">
+        <project-management-module></project-management-module>
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- ══ Close Project Modal (admin / project-owner) ══
+       Opened from the project list "Close" button — closeModalProject holds
+       the row's project. Cancels and closes return to the project list. -->
+  <close-project-modal v-if="closeModalProject"
+    :current-user="currentUser"
+    :project="closeModalProject"
+    @cancel="closeModalProject = null"
+    @closed="onCloseModalDone">
+  </close-project-modal>
+
+  <!-- ══ Impersonation Modal ══ -->
+  <div v-if="showImpersonateModal" class="modal-overlay" @click.self="showImpersonateModal = false" style="z-index:9999">
+    <div class="modal-box" style="max-width:460px">
+      <div class="modal-header">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800">Impersonate User</h3>
+          <p class="text-sm text-gray-500 mt-0.5">Select a user to view the platform through their perspective.</p>
+        </div>
+        <button @click="showImpersonateModal = false" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+          Your admin token stays active — backend permissions are unchanged. Impersonation only affects the UI view and role-based access logic.
+        </p>
+        <div v-if="impersonatableUsers.length === 0" class="text-center py-6 text-gray-400 text-sm">
+          No users linked to this project yet.
+        </div>
+        <div v-else class="space-y-1.5">
+          <button v-for="pu in impersonatableUsers" :key="pu.user_id"
+            @click="startImpersonation(pu)"
+            class="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all text-left group">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:#7C3AED">
+                {{ (pu.name || '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) }}
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-800 group-hover:text-purple-700">{{ pu.name }}</p>
+                <p class="text-xs text-gray-400">{{ pu.email }}</p>
+              </div>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full"
+              :style="{
+                background: pu.role === 'PROJECT_OWNER' ? '#EDE9FE' : pu.role === 'CLIENT' ? '#DBEAFE' : pu.role === 'VENDOR' ? '#FEF3C7' : '#F3F4F6',
+                color:      pu.role === 'PROJECT_OWNER' ? '#5B21B6' : pu.role === 'CLIENT' ? '#1D4ED8' : pu.role === 'VENDOR' ? '#92400E' : '#374151',
+              }">
+              {{ pu.role.replace('_', ' ') }}
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- Scripts -->
+<script src="/static/js/utils.js?v=4"></script>
+<script src="/static/js/api.js?v=27"></script>
+<script src="/static/js/app.js?v=22"></script>
+<script src="/static/js/components/contacts.js?v=6"></script>
+<script src="/static/js/components/meeting-types.js?v=4"></script>
+<script src="/static/js/components/meeting-weekly-schedule.js?v=3"></script>
+<script src="/static/js/components/meetings.js?v=4"></script>
+<script src="/static/js/components/meeting-detail.js?v=5"></script>
+<script src="/static/js/components/meeting-points-view.js?v=5"></script>
+<script src="/static/js/components/dashboard.js?v=4"></script>
+<script src="/static/js/components/users.js?v=3"></script>
+<script src="/static/js/components/packages.js?v=4"></script>
+<script src="/static/js/components/settings.js?v=8"></script>
+<script src="/static/js/components/subservices.js?v=3"></script>
+<script src="/static/js/components/floorplans.js?v=3"></script>
+<script src="/static/js/components/floorplan-pin-picker.js?v=3"></script>
+<script src="/static/js/components/my-action-points.js?v=15"></script>
+<script src="/static/js/components/budget.js?v=22"></script>
+<script src="/static/js/components/risk-register.js?v=11"></script>
+<script src="/static/js/components/project-management.js?v=3"></script>
+<script src="/static/js/components/scope-changes.js?v=8"></script>
+<script src="/static/js/components/schedule.js?v=9"></script>
+<script src="/static/js/components/procurement.js?v=29"></script>
+<script src="/static/js/components/document-comments.js"></script>
+<script src="/static/js/components/document-management.js?v=21"></script>
+<script src="/static/js/components/quality-control.js?v=20"></script>
+<script src="/static/js/components/construction.js?v=33"></script>
+<script src="/static/js/components/safety.js?v=48"></script>
+<script src="/static/js/components/file-attachments.js?v=4"></script>
+<script src="/static/js/components/file-master-list.js?v=3"></script>
+<script src="/static/js/components/org-chart.js"></script>
+<script src="/static/js/components/help-center.js?v=12"></script>
+<script src="/static/js/components/closure-management.js?v=3"></script>
+
+<script>
+  // If the vendored libraries (Vue, Chart.js, Tailwind) failed to load —
+  // e.g. a missing static file or a corrupt deploy — `Vue` / `createApp`
+  // won't exist and `app.mount()` would throw, leaving a blank/unstyled
+  // page. Replace #app with a clear message instead, using only inline
+  // styles so the fallback still renders even when Tailwind didn't load.
+  (function () {
+    var online = typeof Vue !== 'undefined'
+              && typeof createApp === 'function'
+              && typeof app !== 'undefined';
+    if (online) {
+      app.mount('#app');
+      return;
+    }
+    var root = document.getElementById('app');
+    if (!root) return;
+    root.innerHTML =
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;' +
+      'background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:2rem;box-sizing:border-box">' +
+      '  <div style="max-width:460px;width:100%;background:#fff;border-radius:12px;' +
+      'box-shadow:0 10px 25px rgba(0,0,0,0.08);padding:2.5rem;text-align:center">' +
+      '    <div style="width:64px;height:64px;border-radius:50%;background:#FEE2E2;display:flex;' +
+      'align-items:center;justify-content:center;margin:0 auto 1.25rem">' +
+      '      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '        <line x1="1" y1="1" x2="23" y2="23"></line>' +
+      '        <path d="M16.72 11.06A10.94 10.94 0 0119 12.55"></path>' +
+      '        <path d="M5 12.55a10.94 10.94 0 015.17-2.39"></path>' +
+      '        <path d="M10.71 5.05A16 16 0 0122.58 9"></path>' +
+      '        <path d="M1.42 9a15.91 15.91 0 014.7-2.88"></path>' +
+      '        <path d="M8.53 16.11a6 6 0 016.95 0"></path>' +
+      '        <line x1="12" y1="20" x2="12.01" y2="20"></line>' +
+      '      </svg>' +
+      '    </div>' +
+      '    <h1 style="font-size:1.25rem;font-weight:700;color:#1f2937;margin:0 0 0.5rem">Application failed to load</h1>' +
+      '    <p style="color:#6b7280;font-size:0.9rem;line-height:1.55;margin:0 0 1.5rem">' +
+      '      Some of the interface libraries did not load correctly. ' +
+      '      Try reloading; if the problem persists, contact your administrator.' +
+      '    </p>' +
+      '    <button onclick="location.reload()" ' +
+      'style="background:#00AEEF;color:#fff;border:none;padding:0.6rem 1.75rem;border-radius:8px;' +
+      'font-weight:600;cursor:pointer;font-size:0.9rem;transition:background 0.15s"' +
+      'onmouseover="this.style.background=\'#1B4F8C\'" onmouseout="this.style.background=\'#00AEEF\'">' +
+      '      Retry' +
+      '    </button>' +
+      '  </div>' +
+      '</div>';
+  })();
+</script>
+
+</body>
+</html>

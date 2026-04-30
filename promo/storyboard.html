@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImPulSe — Promo Reel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%;
+    background:#030e1f; color:#e5e7eb;
+    font-family:'Barlow', sans-serif;
+    overflow:hidden;
+  }
+  .stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+
+  .scene {
+    position:absolute; inset:0;
+    opacity:0; transition:opacity 0.7s ease;
+    pointer-events:none;
+  }
+  .scene.on { opacity:1; }
+
+  .intro-iframe {
+    position:absolute; inset:0; width:100%; height:100%;
+    border:0; background:#030e1f;
+  }
+
+  /* ── Dual-shot layout per module ─────────────────────────────────
+     The shot box uses `background-size: contain`, so the **entire**
+     screenshot is always visible regardless of its aspect ratio.
+     Any leftover space inside the box is filled with a translucent
+     blue wash so the frame reads as a card, not a gap. */
+  .shots {
+    position:absolute;
+    top:48px; left:1.5%; right:1.5%; bottom:14%;
+  }
+  .shot {
+    position:absolute;
+    top:50%;
+    width:76%;
+    aspect-ratio: 16 / 9;
+    max-height:100%;
+    border-radius:14px;
+    background-color: rgba(35, 144, 216, 0.15);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    box-shadow:0 24px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(35,144,216,0.25);
+    opacity:0;
+    transform:translateY(-50%);
+  }
+  .scene.on .shot.primary {
+    animation: shotEnter1 0.9s cubic-bezier(0.22,1,0.36,1) 0.05s forwards;
+  }
+  .scene.on .shot.secondary {
+    animation: shotFlyIn 1.1s cubic-bezier(0.22,1,0.36,1) var(--fly-delay, 2.8s) forwards;
+  }
+
+  @keyframes shotEnter1 {
+    0%   { opacity:0; left:-8%;  transform:translateY(-50%) scale(0.98); }
+    100% { opacity:1; left:0%;   transform:translateY(-50%) scale(1);    }
+  }
+  @keyframes shotFlyIn {
+    0%   { opacity:0; right:-60%; transform:translateY(-50%) scale(0.92); }
+    100% { opacity:1; right:0%;   transform:translateY(-50%) scale(1);    }
+  }
+  /* Primary sticks to the left, secondary sticks to the right */
+  .shot.primary   { left:0;  right:auto; }
+  .shot.secondary { right:0; left:auto;  }
+  /* Placeholder look when no screenshot is present */
+  .shot.placeholder {
+    background:linear-gradient(145deg, #0c1f3a 0%, #081628 100%);
+    display:flex; align-items:center; justify-content:center;
+    color:#5a9fd4; font-size:14px; text-align:center; padding:20px;
+  }
+
+  .caption {
+    position:absolute; bottom:2%; left:0; right:0;
+    height:12%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:0 8%; z-index:10;
+  }
+  .caption .main {
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:800; font-size:44px; line-height:1.1;
+    color:#ffffff; letter-spacing:0.5px;
+    text-shadow:0 2px 20px rgba(0,0,0,0.8);
+  }
+  .caption .sub {
+    margin-top:14px;
+    font-size:16px; font-weight:500; letter-spacing:2px;
+    text-transform:uppercase; color:#5a9fd4;
+    text-shadow:0 2px 12px rgba(0,0,0,0.8);
+  }
+
+  .scene-label {
+    position:absolute; top:30px; right:40px; z-index:11;
+    font-size:11px; letter-spacing:3px; color:#2390d8;
+    text-transform:uppercase; font-weight:600;
+  }
+
+  .progress-bar {
+    position:fixed; top:0; left:0; height:3px; width:0%;
+    background:linear-gradient(90deg, #1a7abf, #2390d8);
+    box-shadow:0 0 10px #2390d8;
+    z-index:99; transition:width 0.2s linear;
+  }
+
+  .controls {
+    position:fixed; bottom:20px; right:20px;
+    display:flex; gap:10px; z-index:100;
+    background:rgba(0,0,0,0.4); padding:8px 12px; border-radius:8px;
+    backdrop-filter:blur(10px);
+  }
+  .controls button {
+    background:#1a7abf; color:#fff; border:none;
+    padding:6px 14px; border-radius:6px; font-size:12px; cursor:pointer;
+    font-family:'Barlow', sans-serif; font-weight:600; letter-spacing:0.5px;
+  }
+  .controls button:hover { background:#2390d8; }
+
+  /* ── Module-snapshot closing wall ─────────────────────────────── */
+  .wall {
+    position:absolute;
+    top:60px; left:6%; right:6%; bottom:18%;
+    display:grid; grid-template-columns:repeat(3, 1fr);
+    grid-auto-rows:1fr;
+    gap:14px;
+  }
+  .wall .tile {
+    border-radius:12px; overflow:hidden;
+    background-color: rgba(35,144,216,0.15);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    border:1px solid rgba(35,144,216,0.18);
+    box-shadow:0 10px 40px rgba(0,0,0,0.4);
+    opacity:0; transform:translateY(18px) scale(0.96);
+  }
+  .scene.on .wall .tile { animation: tileIn 0.7s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .scene.on .wall .tile:nth-child(1) { animation-delay:0.05s; }
+  .scene.on .wall .tile:nth-child(2) { animation-delay:0.18s; }
+  .scene.on .wall .tile:nth-child(3) { animation-delay:0.31s; }
+  .scene.on .wall .tile:nth-child(4) { animation-delay:0.44s; }
+  .scene.on .wall .tile:nth-child(5) { animation-delay:0.57s; }
+  .scene.on .wall .tile:nth-child(6) { animation-delay:0.70s; }
+  .scene.on .wall .tile:nth-child(7) { animation-delay:0.83s; }
+  .scene.on .wall .tile:nth-child(8) { animation-delay:0.96s; }
+  .scene.on .wall .tile:nth-child(9) { animation-delay:1.09s; }
+
+  @keyframes tileIn {
+    0%   { opacity:0; transform:translateY(18px) scale(0.96); }
+    100% { opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  /* ── Group IPS card ───────────────────────────────────────────── */
+  .ips-card {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%) scale(0.92);
+    display:flex; flex-direction:column; align-items:center; gap:24px;
+    opacity:0;
+  }
+  .ips-card img {
+    max-width:360px; width:36vw;
+    filter:drop-shadow(0 6px 40px rgba(35,144,216,0.55))
+           drop-shadow(0 0 10px rgba(255,255,255,0.15));
+  }
+  .ips-card .tag {
+    font-family:'Barlow Condensed', sans-serif; font-weight:800;
+    font-size:clamp(28px, 3.3vw, 52px); color:#ffffff;
+    letter-spacing:0.5px; text-align:center;
+    text-shadow:0 2px 20px rgba(0,0,0,0.8);
+  }
+  .ips-card .tag em { color:#2390d8; font-style:normal; }
+  .ips-card .sub {
+    font-size:clamp(11px, 1.1vw, 14px); font-weight:600;
+    letter-spacing:3px; color:#5a9fd4; text-transform:uppercase;
+  }
+  .scene.on .ips-card { animation: ipsIn 1.0s cubic-bezier(0.22,1,0.36,1) 0.2s forwards; }
+  @keyframes ipsIn {
+    0%   { opacity:0; transform:translate(-50%,-50%) scale(0.92); }
+    100% { opacity:1; transform:translate(-50%,-50%) scale(1);    }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="bar"></div>
+
+<div class="stage">
+
+  <!-- ────────── 0 · Intro (0–10s) ────────── -->
+  <div class="scene" id="s0">
+    <iframe class="intro-iframe" src="intro-outro.html" id="introFrame"></iframe>
+  </div>
+
+  <!-- ────────── 1 · Dashboard (10–17s) ────────── -->
+  <div class="scene" id="s1" style="--fly-delay:3s">
+    <div class="scene-label">Project Dashboard</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="01a"></div>
+      <div class="shot secondary" data-shot="01b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">One platform for every party</p>
+      <p class="sub">Owner · PMC · Client · Vendors</p>
+    </div>
+  </div>
+
+  <!-- ────────── 2 · Packages (17–24s) ────────── -->
+  <div class="scene" id="s2" style="--fly-delay:3s">
+    <div class="scene-label">Packages</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="02a"></div>
+      <div class="shot secondary" data-shot="02b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">Role-based review management, linked to packages</p>
+      <p class="sub">PMC · Client · Technical · Commercial</p>
+    </div>
+  </div>
+
+  <!-- ────────── 3 · Approvals (24–31s) ────────── -->
+  <div class="scene" id="s3" style="--fly-delay:3s">
+    <div class="scene-label">Approvals</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="03a"></div>
+      <div class="shot secondary" data-shot="03b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">One approval flow. Full audit trail.</p>
+      <p class="sub">Scope · Invoices · Progress · ITPs</p>
+    </div>
+  </div>
+
+  <!-- ────────── 4 · Budget (31–38s) ────────── -->
+  <div class="scene" id="s4" style="--fly-delay:3s">
+    <div class="scene-label">Budget</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="04a"></div>
+      <div class="shot secondary" data-shot="04b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">Forecast · Committed · Spend</p>
+      <p class="sub">Integrating risk · Integrating scope changes</p>
+    </div>
+  </div>
+
+  <!-- ────────── 5 · Schedule (38–45s) ────────── -->
+  <div class="scene" id="s5" style="--fly-delay:3s">
+    <div class="scene-label">Schedule</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="05a"></div>
+      <div class="shot secondary" data-shot="05b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">Plan, track, and report — by package</p>
+      <p class="sub">Tasks · Milestones · Progress reports</p>
+    </div>
+  </div>
+
+  <!-- ────────── 6 · Risk (45–52s) ────────── -->
+  <div class="scene" id="s6" style="--fly-delay:3s">
+    <div class="scene-label">Risk Register</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="06a"></div>
+      <div class="shot secondary" data-shot="06b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">Score. Mitigate. Own.</p>
+      <p class="sub">Probability · Cost · Schedule · Before and after</p>
+    </div>
+  </div>
+
+  <!-- ────────── 7 · Documents (52–59s) ────────── -->
+  <div class="scene" id="s7" style="--fly-delay:3s">
+    <div class="scene-label">Documents</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="07a"></div>
+      <div class="shot secondary" data-shot="07b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">Every revision. Every comment. Every decision.</p>
+      <p class="sub">Version-controlled · Reviewer-aware · Auditable</p>
+    </div>
+  </div>
+
+  <!-- ────────── 8 · Quality Control (59–66s) ────────── -->
+  <div class="scene" id="s8" style="--fly-delay:3s">
+    <div class="scene-label">Quality Control</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="08a"></div>
+      <div class="shot secondary" data-shot="08b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">ITPs and punch items — with photos from the field</p>
+      <p class="sub">Scrollable gallery · Linked to the record</p>
+    </div>
+  </div>
+
+  <!-- ────────── 9 · My Action Points (66–72s) ────────── -->
+  <div class="scene" id="s9_ap" style="--fly-delay:2.8s">
+    <div class="scene-label">My Action Points</div>
+    <div class="shots">
+      <div class="shot primary" data-shot="09a"></div>
+      <div class="shot secondary" data-shot="09b"></div>
+    </div>
+    <div class="caption">
+      <p class="main">One to-do list — for every user</p>
+      <p class="sub">Grouped · Filtered · Actionable</p>
+    </div>
+  </div>
+
+  <!-- ────────── 10 · Module wall — the 9 modules we just saw ────────── -->
+  <div class="scene" id="s10">
+    <div class="scene-label">All Modules</div>
+    <div class="wall">
+      <div class="tile" data-shot="wall-1"></div>
+      <div class="tile" data-shot="wall-2"></div>
+      <div class="tile" data-shot="wall-3"></div>
+      <div class="tile" data-shot="wall-4"></div>
+      <div class="tile" data-shot="wall-5"></div>
+      <div class="tile" data-shot="wall-6"></div>
+      <div class="tile" data-shot="wall-7"></div>
+      <div class="tile" data-shot="wall-8"></div>
+      <div class="tile" data-shot="wall-9"></div>
+    </div>
+    <div class="caption">
+      <p class="main">One platform. One source of truth.</p>
+      <p class="sub">One project team.</p>
+    </div>
+  </div>
+
+  <!-- ────────── 11 · Group IPS card ────────── -->
+  <div class="scene" id="s11">
+    <div class="ips-card">
+      <img src="logo-ips.png" alt="Group IPS" />
+      <p class="tag">For Project Managers, <em>made by Project Managers.</em></p>
+      <p class="sub">Group IPS · ImPulSe Platform</p>
+    </div>
+  </div>
+
+  <!-- ────────── 12 · Outro — replays the intro identically ────────── -->
+  <div class="scene" id="s12">
+    <iframe class="intro-iframe" src="intro-outro.html" id="outroFrame"></iframe>
+  </div>
+
+</div>
+
+<div class="controls">
+  <button onclick="restart()">Restart</button>
+  <button onclick="toggle()">Play / Pause</button>
+</div>
+
+<script>
+  /* ~87-second master timeline — 9 module scenes at 7 s each
+     (secondary shot flies in ~3 s), plus a 5 s module wall, 5 s
+     Group IPS card, and a 5 s logo-hold outro. */
+  const timeline = [
+    { id:'s0',    start:0,     end:10000 },   // intro 10 s
+    { id:'s1',    start:10000, end:17000 },   // dashboard
+    { id:'s2',    start:17000, end:24000 },   // packages
+    { id:'s3',    start:24000, end:31000 },   // approvals
+    { id:'s4',    start:31000, end:38000 },   // budget
+    { id:'s5',    start:38000, end:45000 },   // schedule
+    { id:'s6',    start:45000, end:52000 },   // risk
+    { id:'s7',    start:52000, end:59000 },   // documents
+    { id:'s8',    start:59000, end:66000 },   // quality control
+    { id:'s9_ap', start:66000, end:72000 },   // my action points
+    { id:'s10',   start:72000, end:77000 },   // module wall (9 tiles)
+    { id:'s11',   start:77000, end:82000 },   // group IPS card
+    { id:'s12',   start:82000, end:92000 },   // outro — replays the intro identically
+  ];
+  const totalMs = 92000;
+  let startedAt = null, paused = false, pauseOffset = 0;
+
+  /* Screenshot map — two per module + 9 tiles for the wall.
+     Drop PNGs with these names into ./captures/ to replace placeholders. */
+  const shotMap = {
+    '01a': 'captures/01a-dashboard-overview.png',
+    '01b': 'captures/01b-dashboard-detail.png',
+    '02a': 'captures/02a-packages-list.png',
+    '02b': 'captures/02b-package-reviewers.png',
+    '03a': 'captures/03a-approval-cards.png',
+    '03b': 'captures/03b-approval-history.png',
+    '04a': 'captures/04a-budget-dashboard.png',
+    '04b': 'captures/04b-budget-charts.png',
+    '05a': 'captures/05a-schedule-dashboard.png',
+    '05b': 'captures/05b-schedule-gantt.png',
+    '06a': 'captures/06a-risk-dashboard.png',
+    '06b': 'captures/06b-risk-matrix.png',
+    '07a': 'captures/07a-documents-list.png',
+    '07b': 'captures/07b-document-detail.png',
+    '08a': 'captures/08a-itp-register.png',
+    '08b': 'captures/08b-punch-gallery.png',
+    '09a': 'captures/09a-my-action-points.png',
+    '09b': 'captures/09b-my-action-detail.png',
+    // 3×3 module wall — custom selection of screens across modules
+    'wall-1': 'captures/01b-dashboard-detail.png',
+    'wall-2': 'captures/03b-approval-history.png',
+    'wall-3': 'captures/04b-budget-charts.png',
+    'wall-4': 'captures/05a-schedule-dashboard.png',
+    'wall-5': 'captures/06b-risk-matrix.png',
+    'wall-6': 'captures/07a-documents-list.png',
+    'wall-7': 'captures/08b-punch-gallery.png',
+    'wall-8': 'captures/05b-schedule-gantt.png',
+    'wall-9': 'captures/08a-itp-register.png',
+  };
+
+  function applyShots() {
+    document.querySelectorAll('[data-shot]').forEach(el => {
+      const key = el.dataset.shot;
+      const url = shotMap[key]; if (!url) return;
+      const img = new Image();
+      img.onload = () => {
+        // Keep the translucent blue fill; only the background-image changes.
+        // contain preserves the full screenshot so no content is cropped;
+        // any leftover space inside the shot box stays blue.
+        el.style.backgroundImage = `url("${url}")`;
+      };
+      img.onerror = () => {
+        el.classList.add('placeholder');
+        el.innerHTML = `<div>
+          <div style="font-size:11px;letter-spacing:2px;color:#2390d8;text-transform:uppercase;margin-bottom:8px">Placeholder</div>
+          <div style="font-size:12px;color:#5a9fd4">Drop a capture at<br/><code style="color:#2390d8">${url}</code></div>
+        </div>`;
+      };
+      img.src = url;
+    });
+  }
+
+  function tick() {
+    if (paused) return;
+    const elapsed = performance.now() - startedAt + pauseOffset;
+    document.getElementById('bar').style.width = Math.min(100, (elapsed / totalMs) * 100) + '%';
+    timeline.forEach(sc => {
+      const el = document.getElementById(sc.id); if (!el) return;
+      const on = elapsed >= sc.start && elapsed < sc.end;
+      if (on && !el.classList.contains('on')) el.classList.add('on');
+      if (!on && el.classList.contains('on')) el.classList.remove('on');
+    });
+    if (elapsed < totalMs) requestAnimationFrame(tick);
+    else document.getElementById('bar').style.width = '100%';
+  }
+
+  function restart() {
+    pauseOffset = 0; paused = false;
+    startedAt = performance.now();
+    ['introFrame','outroFrame'].forEach(id => {
+      const f = document.getElementById(id); if (f) f.src = f.src;
+    });
+    // Re-trigger scene animations by removing .on
+    timeline.forEach(sc => document.getElementById(sc.id).classList.remove('on'));
+    // Force animation restart on dual-shot scenes
+    document.querySelectorAll('.shot').forEach(s => { s.style.animation = 'none'; s.offsetWidth; s.style.animation = ''; });
+    requestAnimationFrame(tick);
+  }
+
+  function toggle() {
+    if (paused) { paused = false; startedAt = performance.now(); requestAnimationFrame(tick); }
+    else        { paused = true;  pauseOffset = performance.now() - startedAt + pauseOffset; }
+  }
+
+  applyShots();
+  startedAt = performance.now();
+  requestAnimationFrame(tick);
+</script>
+</body>
+</html>

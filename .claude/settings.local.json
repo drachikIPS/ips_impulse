@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip --version)",
+      "Bash(pip3 --version)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(node --check \"C:\\\\Users\\\\bpu\\\\AI\\\\Project Management Platform\\\\static\\\\js\\\\components\\\\my-action-points.js\")",
+      "Bash(node --check \"C:\\\\Users\\\\bpu\\\\AI\\\\Project Management Platform\\\\static\\\\js\\\\components\\\\schedule.js\")",
+      "Bash(node --check \"C:\\\\Users\\\\bpu\\\\AI\\\\Project Management Platform\\\\static\\\\js\\\\components\\\\dashboard.js\")",
+      "Bash(node --check \"C:\\\\Users\\\\bpu\\\\AI\\\\Project Management Platform\\\\static\\\\js\\\\api.js\")",
+      "Bash(python3:*)",
+      "Bash(python -c \"import routers.documents; print\\('OK'\\)\")",
+      "Bash(python -c \"import models; print\\('OK'\\)\")",
+      "Bash(python -c \"from fpdf import FPDF; print\\('fpdf available'\\)\")",
+      "Bash(python -c \"from fpdf import FPDF; p=FPDF\\(\\); p.add_page\\(\\); p.image\\('static/assets/impulse-logo-light.svg', x=10, y=8, h=12\\); print\\('SVG works'\\)\")",
+      "Bash(timeout 5 python main.py)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/static/assets/impulse-logo-light.svg)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/static/assets/impulse-logo-dark.svg)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/static/assets/impulse-loader.svg)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import main; print\\('OK'\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/static/assets/impulse-logo-light@2x.png)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/static/assets/impulse-logo-dark@2x.png)",
+      "Bash(curl *)",
+      "Bash(python -c \"import main; print\\('Server OK'\\)\")",
+      "Bash(python -c \"import cairosvg; print\\('cairosvg OK'\\)\")",
+      "Bash(python -c \"from PIL import Image; print\\('Pillow OK'\\)\")",
+      "Read(//c/Users/bpu/AppData/Local/Temp/claude/C--Users-bpu-AI-Project-Management-Platform/4d7cee94-a9d3-4700-8c4f-41c067db5846/tasks/**)",
+      "Bash(python -c \"import main\")",
+      "Bash(grep -n '^</div>\\\\|^  </div>\\\\|^    </div>\\\\|^</template>\\\\|template:\\\\|^  \\\\`' \"C:/Users/bpu/AI/Project Management Platform/static/js/components/scope-changes.js\")",
+      "Bash(grep *)",
+      "Bash(python -c \"from routers import scope_changes\")"
+    ]
+  }
+}

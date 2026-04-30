@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160" role="img" aria-labelledby="title desc">
+  <title>ImPulSe loading pulse</title>
+  <desc>Animated pulse line moving from left to right for application loading screens.</desc>
+
+  <defs>
+    <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2CB7E8"/>
+      <stop offset="100%" stop-color="#1E4CC9"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <path id="pulsePath" d="M40 80 L230 80 L275 48 L320 80 L360 80 L378 130 L398 24 L418 98 L435 58 L450 80 L600 80" />
+  </defs>
+
+  <rect width="100%" height="100%" fill="none"/>
+
+  <!-- base line -->
+  <use href="#pulsePath"
+       fill="none"
+       stroke="#D7EAF6"
+       stroke-width="6"
+       stroke-linecap="round"
+       stroke-linejoin="round"/>
+
+  <!-- animated branded line -->
+  <use href="#pulsePath"
+       fill="none"
+       stroke="url(#pulseGradient)"
+       stroke-width="6"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       stroke-dasharray="120 1000"
+       filter="url(#softGlow)">
+    <animate attributeName="stroke-dashoffset"
+             from="1120"
+             to="0"
+             dur="1.8s"
+             repeatCount="indefinite"/>
+  </use>
+
+  <!-- moving glow dot -->
+  <circle r="6" fill="#2CB7E8" filter="url(#softGlow)">
+    <animateMotion dur="1.8s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#pulsePath"/>
+    </animateMotion>
+  </circle>
+</svg>
