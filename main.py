@@ -1274,7 +1274,10 @@ def migrate_db():
             print(f"[migration] work_permit_reviews backfill failed: {e}")
 
 
-migrate_db()
+# Migrations use SQLite-specific PRAGMA syntax — skip on PostgreSQL since
+# create_all() already builds all tables with the correct schema.
+if str(database.engine.url).startswith("sqlite"):
+    migrate_db()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
