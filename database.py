@@ -1,7 +1,7 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
-from sqlalchemy.pool import NullPool, StaticPool
+from sqlalchemy.pool import NullPool
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./projectmanagement.db")
 
