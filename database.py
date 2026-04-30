@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import NullPool, StaticPool
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./projectmanagement.db")
 
@@ -12,12 +13,11 @@ if DATABASE_URL.startswith("postgres://"):
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
-    )
+    # NullPool is required for serverless (Vercel): each request opens and
+    # immediately releases its own connection instead of maintaining a pool
+    # across short-lived function instances, which would exhaust Supabase's
+    # direct-connection limit.
+    engine = create_engine(DATABASE_URL, poolclass=NullPool)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
