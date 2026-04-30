@@ -1289,7 +1289,8 @@ def migrate_db():
             print(f"[migration] work_permit_reviews backfill failed: {e}")
 
 
-migrate_db()
+if str(database.engine.url).startswith("sqlite"):
+    migrate_db()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

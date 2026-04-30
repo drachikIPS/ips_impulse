@@ -1,11 +1,27 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.pool import NullPool
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./projectmanagement.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./projectmanagement.db")
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# Supabase and some PaaS providers give a "postgres://" URL; SQLAlchemy requires
+# "postgresql://" for its psycopg2 dialect.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Strip pgbouncer=true — Prisma-specific parameter that psycopg2 rejects.
+DATABASE_URL = DATABASE_URL.replace("&pgbouncer=true", "").replace("?pgbouncer=true&", "?").replace("?pgbouncer=true", "")
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    # NullPool is required for serverless (Vercel): each request opens and
+    # immediately releases its own connection instead of maintaining a pool
+    # across short-lived function instances, which would exhaust Supabase's
+    # direct-connection limit.
+    engine = create_engine(DATABASE_URL, poolclass=NullPool)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

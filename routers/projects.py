@@ -1,23 +1,23 @@
+import io
 import os
 import re
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 import database, models, auth
 import seed_data
+import storage
 from routers.audit import set_created, set_updated, check_lock, audit_dict
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
-# Customer feedback files live OUTSIDE the project upload tree so they
-# survive project archiving and can be aggregated across projects.
-CUSTOMER_FEEDBACK_DIR = os.path.join("uploads", "Customer Feedbacks")
-os.makedirs(CUSTOMER_FEEDBACK_DIR, exist_ok=True)
+CUSTOMER_FEEDBACK_DIR = "Customer Feedbacks"
 
 
 def _sanitize_filename_part(s: str) -> str:
@@ -816,21 +816,14 @@ def upload_customer_feedback(
     pno = _sanitize_filename_part(p.project_number) or f"P{project_id}"
     cli = _sanitize_filename_part(p.client or "")
     pol = polarity_up
-    ts = datetime.utcnow().strftime("%H%M%S")
     ext = os.path.splitext(file.filename or "")[1].lower() or ""
-    base = "_".join(part for part in (pno, cli, date_part, pol, ts) if part)
-    saved_name = f"{base}{ext}"
-    saved_path = os.path.join(CUSTOMER_FEEDBACK_DIR, saved_name)
+    uid8 = uuid.uuid4().hex[:8]
+    base = "_".join(part for part in (pno, cli, date_part, pol) if part)
+    saved_name = f"{base}_{uid8}{ext}"
+    saved_path = f"{CUSTOMER_FEEDBACK_DIR}/{saved_name}"
 
-    # Avoid collisions
-    counter = 2
-    while os.path.exists(saved_path):
-        saved_name = f"{base}_{counter}{ext}"
-        saved_path = os.path.join(CUSTOMER_FEEDBACK_DIR, saved_name)
-        counter += 1
-
-    with open(saved_path, "wb") as out:
-        out.write(file.file.read())
+    content = file.file.read()
+    storage.upload_file(saved_path, content, file.content_type or "application/octet-stream")
 
     fb = models.CustomerFeedback(
         project_id=project_id,
@@ -891,9 +884,14 @@ def download_customer_feedback(
         up = db.query(models.UserProject).filter_by(user_id=user.id, project_id=fb.project_id).first()
         if not up:
             raise HTTPException(403, "Not authorized")
-    if not os.path.exists(fb.file_path):
-        raise HTTPException(404, "File missing on disk")
-    return FileResponse(fb.file_path, filename=fb.file_name)
+    file_bytes = storage.get_file_bytes(fb.file_path)
+    if file_bytes is None:
+        raise HTTPException(404, "File not found")
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{fb.file_name}"'},
+    )
 
 
 @router.delete("/customer-feedbacks/{feedback_id}")
@@ -908,9 +906,8 @@ def delete_customer_feedback(
     if not _can_manage_project(user, fb.project_id, db):
         raise HTTPException(403, "Not authorized")
     try:
-        if os.path.exists(fb.file_path):
-            os.remove(fb.file_path)
-    except OSError:
+        storage.delete_file(fb.file_path)
+    except Exception:
         pass
     db.delete(fb)
     db.commit()
