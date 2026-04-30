@@ -851,21 +851,36 @@ def migrate_db():
         except Exception:
             pass
 
-        # ── daily_reports: lock columns ───────────────────────────────────────
+        # ── daily_reports: lock columns + expected_worker_count ──────────────
         try:
             dr_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(daily_reports)")).fetchall()}
             if dr_cols:
                 for col, defn in [
-                    ("locked",           "BOOLEAN DEFAULT 1"),
-                    ("locked_at",        "DATETIME"),
-                    ("unlocked_at",      "DATETIME"),
-                    ("unlocked_by_id",   "INTEGER"),
-                    ("unlock_comment",   "TEXT"),
+                    ("locked",                "BOOLEAN DEFAULT 1"),
+                    ("locked_at",             "DATETIME"),
+                    ("unlocked_at",           "DATETIME"),
+                    ("unlocked_by_id",        "INTEGER"),
+                    ("unlock_comment",        "TEXT"),
+                    ("expected_worker_count", "INTEGER"),
                 ]:
                     if col not in dr_cols:
                         conn.execute(text(f"ALTER TABLE daily_reports ADD COLUMN {col} {defn}"))
                 conn.execute(text(
                     "UPDATE daily_reports SET locked=1 WHERE locked IS NULL"
+                ))
+                conn.commit()
+        except Exception:
+            pass
+
+        # ── work_logs: ignore_missing_reports flag ────────────────────────────
+        try:
+            wl_cols = {r[1] for r in conn.execute(text("PRAGMA table_info(work_logs)")).fetchall()}
+            if wl_cols and "ignore_missing_reports" not in wl_cols:
+                conn.execute(text(
+                    "ALTER TABLE work_logs ADD COLUMN ignore_missing_reports BOOLEAN DEFAULT 0"
+                ))
+                conn.execute(text(
+                    "UPDATE work_logs SET ignore_missing_reports=0 WHERE ignore_missing_reports IS NULL"
                 ))
                 conn.commit()
         except Exception:
@@ -1274,10 +1289,7 @@ def migrate_db():
             print(f"[migration] work_permit_reviews backfill failed: {e}")
 
 
-# Migrations use SQLite-specific PRAGMA syntax — skip on PostgreSQL since
-# create_all() already builds all tables with the correct schema.
-if str(database.engine.url).startswith("sqlite"):
-    migrate_db()
+migrate_db()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1600,10 +1612,20 @@ def serve_root():
     return FileResponse("static/index.html")
 
 
+# Mobile entry — separate single-page app at /m. Same hash-routing trick:
+# every refresh on a deep mobile URL still serves the lean phone shell.
+@app.get("/m")
+@app.get("/m/")
+def serve_mobile_root():
+    return FileResponse("static/index_mobile.html")
+
+
 @app.get("/{full_path:path}")
 def serve_spa(full_path: str):
     if full_path.startswith("api/"):
         return {"detail": "Not Found"}
+    if full_path == "m" or full_path.startswith("m/"):
+        return FileResponse("static/index_mobile.html")
     return FileResponse("static/index.html")
 
 

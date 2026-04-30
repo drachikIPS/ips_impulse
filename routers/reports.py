@@ -4,14 +4,12 @@ Reports — list, status, download, and delete background-generated PDFs.
 Reports are produced by safety_export.py and punch_export.py worker threads.
 This router is the read/management surface for the frontend.
 """
-import io
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import storage
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -20,6 +18,8 @@ import auth
 
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
+
+UPLOAD_ROOT = Path("uploads")
 
 
 def _fmt_report(r: models.Report) -> dict:
@@ -79,15 +79,16 @@ def download_report(
         raise HTTPException(404, "Report not found")
     if r.status != "READY" or not r.stored_path:
         raise HTTPException(400, f"Report is not ready (status: {r.status})")
-    file_content = storage.get_file_bytes(r.stored_path)
-    if file_content is None:
+    abs_path = (UPLOAD_ROOT / r.stored_path).resolve()
+    # Containment check — never serve a file outside uploads/
+    try:
+        abs_path.relative_to(UPLOAD_ROOT.resolve())
+    except ValueError:
         raise HTTPException(404, "Report file not found")
-    fname = Path(r.stored_path).name
-    return StreamingResponse(
-        io.BytesIO(file_content),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
-    )
+    if not abs_path.exists():
+        raise HTTPException(404, "Report file missing on disk")
+    fname = abs_path.name
+    return FileResponse(abs_path, media_type="application/pdf", filename=fname)
 
 
 @router.delete("/{report_id}")
@@ -99,9 +100,13 @@ def delete_report(
     r = db.query(models.Report).filter_by(id=report_id, project_id=user.project_id).first()
     if not r:
         raise HTTPException(404, "Report not found")
+    # Best-effort delete the PDF file from disk.
     if r.stored_path:
         try:
-            storage.delete_file(r.stored_path)
+            abs_path = (UPLOAD_ROOT / r.stored_path).resolve()
+            abs_path.relative_to(UPLOAD_ROOT.resolve())
+            if abs_path.exists():
+                abs_path.unlink()
         except Exception:
             pass
     db.delete(r)

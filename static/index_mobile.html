@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"/>
+  <title>IPS · Mobile</title>
+
+  <link rel="manifest" href="/static/manifest.webmanifest"/>
+  <meta name="theme-color" content="#1B4F8C"/>
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="IPS"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+
+  <script src="/static/vendor/tailwindcss/tailwindcss-3.4.16.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'ips-blue': '#00AEEF',
+            'ips-dark': '#1B4F8C',
+            'ips-light': '#E8F4FD',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/mobile.css?v=1"/>
+  <script src="/static/vendor/vue/vue-3.5.13.global.prod.js"></script>
+</head>
+<body class="bg-gray-50 m-body">
+
+<div id="m-app">
+  <component :is="currentScreen" v-bind="screenProps"></component>
+</div>
+
+<!-- Shared with the desktop bundle, kept tiny -->
+<script src="/static/js/api.js?v=1"></script>
+<script src="/static/js/utils.js?v=1"></script>
+
+<!-- Mobile primitives -->
+<script src="/static/js/m/primitives/m-app-bar.js?v=1"></script>
+<script src="/static/js/m/primitives/m-screen.js?v=1"></script>
+<script src="/static/js/m/primitives/m-list-row.js?v=1"></script>
+<script src="/static/js/m/primitives/m-status-pill.js?v=1"></script>
+<script src="/static/js/m/primitives/m-empty.js?v=1"></script>
+<script src="/static/js/m/primitives/m-fab.js?v=1"></script>
+
+<!-- Screens -->
+<script src="/static/js/m/screens/login.js?v=1"></script>
+<script src="/static/js/m/screens/projects.js?v=1"></script>
+<script src="/static/js/m/screens/home.js?v=1"></script>
+
+<!-- Root + router (must load last) -->
+<script src="/static/js/m/m-app.js?v=1"></script>
+</body>
+</html>
