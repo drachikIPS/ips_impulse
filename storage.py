@@ -35,7 +35,7 @@ def upload_file(path: str, content: bytes, content_type: str) -> None:
         _supabase().storage.from_(STORAGE_BUCKET).upload(
             path=path,
             file=content,
-            file_options={"content-type": content_type},
+            file_options={"content-type": content_type, "upsert": "true"},
         )
     else:
         dest = UPLOAD_ROOT / path

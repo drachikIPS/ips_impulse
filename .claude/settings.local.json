@@ -30,7 +30,12 @@
       "Bash(python -c \"import main\")",
       "Bash(grep -n '^</div>\\\\|^  </div>\\\\|^    </div>\\\\|^</template>\\\\|template:\\\\|^  \\\\`' \"C:/Users/bpu/AI/Project Management Platform/static/js/components/scope-changes.js\")",
       "Bash(grep *)",
-      "Bash(python -c \"from routers import scope_changes\")"
+      "Bash(python -c \"from routers import scope_changes\")",
+      "Bash(python -c \"import os; print\\(repr\\(os.environ.get\\('DATABASE_URL', 'NOT SET'\\)\\)\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
     ]
   }
 }
